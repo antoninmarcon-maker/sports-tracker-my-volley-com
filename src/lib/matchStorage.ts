@@ -1,7 +1,8 @@
-import { MatchSummary } from '@/types/volleyball';
+import { MatchSummary, Player } from '@/types/volleyball';
 
 const MATCHES_KEY = 'volley-tracker-matches';
 const ACTIVE_MATCH_KEY = 'volley-tracker-active-match-id';
+const LAST_ROSTER_KEY = 'volley-tracker-last-roster';
 
 export function getAllMatches(): MatchSummary[] {
   try {
@@ -44,7 +45,20 @@ export function clearActiveMatchId() {
   localStorage.removeItem(ACTIVE_MATCH_KEY);
 }
 
+export function saveLastRoster(players: Player[]) {
+  localStorage.setItem(LAST_ROSTER_KEY, JSON.stringify(players));
+}
+
+export function getLastRoster(): Player[] {
+  try {
+    const raw = localStorage.getItem(LAST_ROSTER_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch { return []; }
+}
+
 export function createNewMatch(teamNames: { blue: string; red: string }): MatchSummary {
+  const lastRoster = getLastRoster();
   return {
     id: crypto.randomUUID(),
     teamNames,
@@ -53,6 +67,7 @@ export function createNewMatch(teamNames: { blue: string; red: string }): MatchS
     points: [],
     sidesSwapped: false,
     chronoSeconds: 0,
+    players: lastRoster.map(p => ({ ...p, id: crypto.randomUUID() })),
     createdAt: Date.now(),
     updatedAt: Date.now(),
     finished: false,
