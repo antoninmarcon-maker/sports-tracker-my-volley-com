@@ -67,7 +67,7 @@ export function PointTimeline({ points, teamNames }: PointTimelineProps) {
     const rows: DataPoint[] = [initial];
 
     points.forEach((p, i) => {
-      if (p.team === 'blue') blueScore++;
+      if ((p.team === 'blue' && p.type === 'scored') || (p.team === 'red' && p.type === 'fault')) blueScore++;
       else redScore++;
       const elapsed = Math.round((p.timestamp - startTime) / 1000);
       rows.push({
