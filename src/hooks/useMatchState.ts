@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Team, Point, PointType, ActionType, SetData, Player } from '@/types/volleyball';
-import { getMatch, saveMatch } from '@/lib/matchStorage';
+import { getMatch, saveMatch, saveLastRoster } from '@/lib/matchStorage';
 
 export function useMatchState(matchId: string) {
   const loaded = useRef(getMatch(matchId)).current;
@@ -188,7 +188,7 @@ export function useMatchState(matchId: string) {
     resetChrono();
   }, [resetChrono]);
 
-  // Auto-save to match storage
+  // Auto-save to match storage + persist roster
   useEffect(() => {
     if (!loaded) return;
     saveMatch({
@@ -202,6 +202,7 @@ export function useMatchState(matchId: string) {
       players,
       updatedAt: Date.now(),
     });
+    saveLastRoster(players);
   }, [completedSets, currentSetNumber, points, teamNames, sidesSwapped, chronoSeconds, players, loaded]);
 
   return {

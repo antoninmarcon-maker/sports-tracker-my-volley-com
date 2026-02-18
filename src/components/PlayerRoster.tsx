@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Users, Plus, X, Pencil, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Player } from '@/types/volleyball';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ export function PlayerRoster({ players, onSetPlayers, teamName }: PlayerRosterPr
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNumber, setEditNumber] = useState('');
   const [editName, setEditName] = useState('');
+  const numberRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const addPlayer = () => {
     if (!newNumber.trim()) return;
@@ -28,6 +30,7 @@ export function PlayerRoster({ players, onSetPlayers, teamName }: PlayerRosterPr
     onSetPlayers([...players, player]);
     setNewNumber('');
     setNewName('');
+    setTimeout(() => numberRef.current?.focus(), 0);
   };
 
   const removePlayer = (id: string) => {
@@ -100,18 +103,20 @@ export function PlayerRoster({ players, onSetPlayers, teamName }: PlayerRosterPr
           {/* Add player */}
           <div className="flex gap-1.5">
             <Input
+              ref={numberRef}
               value={newNumber}
               onChange={e => setNewNumber(e.target.value)}
               className="h-8 w-14 text-xs"
               placeholder="#"
-              onKeyDown={e => e.key === 'Enter' && addPlayer()}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); nameRef.current?.focus(); } }}
             />
             <Input
+              ref={nameRef}
               value={newName}
               onChange={e => setNewName(e.target.value)}
               className="h-8 flex-1 text-xs"
               placeholder="Nom (optionnel)"
-              onKeyDown={e => e.key === 'Enter' && addPlayer()}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPlayer(); } }}
             />
             <button
               onClick={addPlayer}
