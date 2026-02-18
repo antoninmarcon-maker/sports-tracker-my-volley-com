@@ -200,7 +200,7 @@ export function ScoreBoard({
                 menuTab === 'fault' ? 'bg-destructive text-destructive-foreground' : 'bg-secondary text-secondary-foreground'
               }`}
             >
-              ❌ Fautes Commises
+              ❌ Fautes Adverses
             </button>
           </div>
           {/* Actions */}

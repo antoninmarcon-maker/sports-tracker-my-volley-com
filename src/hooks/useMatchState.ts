@@ -75,8 +75,8 @@ export function useMatchState(matchId: string) {
   }, []);
 
   const score = {
-    blue: points.filter(p => (p.team === 'blue' && p.type === 'scored') || (p.team === 'red' && p.type === 'fault')).length,
-    red: points.filter(p => (p.team === 'red' && p.type === 'scored') || (p.team === 'blue' && p.type === 'fault')).length,
+    blue: points.filter(p => p.team === 'blue').length,
+    red: points.filter(p => p.team === 'red').length,
   };
 
   const stats = useMemo(() => {
