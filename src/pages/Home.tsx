@@ -64,8 +64,8 @@ export default function Home() {
     if (!match) return;
     // End current set if there are points
     if (match.points.length > 0) {
-      const blueScore = match.points.filter(p => (p.team === 'blue' && p.type === 'scored') || (p.team === 'red' && p.type === 'fault')).length;
-      const redScore = match.points.filter(p => (p.team === 'red' && p.type === 'scored') || (p.team === 'blue' && p.type === 'fault')).length;
+      const blueScore = match.points.filter(p => p.team === 'blue').length;
+      const redScore = match.points.filter(p => p.team === 'red').length;
       const winner: Team = blueScore >= redScore ? 'blue' : 'red';
       const setData: SetData = {
         id: crypto.randomUUID(),
