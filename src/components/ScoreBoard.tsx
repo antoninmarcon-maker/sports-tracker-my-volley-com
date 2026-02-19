@@ -62,6 +62,7 @@ export function ScoreBoard({
   const [nameInputs, setNameInputs] = useState(teamNames);
   const [menuTeam, setMenuTeam] = useState<Team | null>(null);
   const [menuTab, setMenuTab] = useState<MenuTab>('scored');
+  const [confirmEndSet, setConfirmEndSet] = useState(false);
 
   const left: Team = sidesSwapped ? 'red' : 'blue';
   const right: Team = sidesSwapped ? 'blue' : 'red';
@@ -278,12 +279,37 @@ export function ScoreBoard({
             <ArrowLeftRight size={16} /> Switch
           </button>
           <button
-            onClick={onEndSet}
+            onClick={() => setConfirmEndSet(true)}
             disabled={!canUndo}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-action-fault/20 text-action-fault border border-action-fault/30 hover:bg-action-fault/30 disabled:opacity-30 transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-all"
           >
             <Flag size={16} /> Fin du Set
           </button>
+        </div>
+      )}
+      {/* End set confirmation modal */}
+      {confirmEndSet && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setConfirmEndSet(false)}>
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full border border-border space-y-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-foreground text-center">Terminer le set ?</h2>
+            <p className="text-sm text-muted-foreground text-center">
+              Score actuel : <span className="font-bold text-team-blue">{score.blue}</span> – <span className="font-bold text-team-red">{score.red}</span>. Les côtés seront inversés.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmEndSet(false)}
+                className="flex-1 py-2.5 rounded-lg bg-secondary text-secondary-foreground font-semibold text-sm"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => { setConfirmEndSet(false); onEndSet(); }}
+                className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-1.5"
+              >
+                <Flag size={16} /> Confirmer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
