@@ -33,31 +33,25 @@ export function UserMenu({ user, onOpenSavedPlayers }: UserMenuProps) {
     if (!feedbackMessage.trim()) return;
     setSendingFeedback(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Vous devez être connecté pour envoyer un feedback.');
-        setSendingFeedback(false);
-        return;
-      }
       const { error } = await supabase.from('feedback').insert({
-        user_id: session.user.id,
-        email: session.user.email || '',
+        user_id: user.id,
+        email: user.email || '',
         message: feedbackMessage.trim(),
       });
       if (error) {
         console.error('[Feedback] Insert error:', error);
         toast.error(`Erreur : ${error.message}`);
-        setSendingFeedback(false);
-        return;
+      } else {
+        toast.success('Merci pour votre retour !');
+        setFeedbackMessage('');
+        setShowFeedback(false);
       }
-      toast.success('Merci pour votre retour !');
-      setFeedbackMessage('');
-      setShowFeedback(false);
     } catch (err) {
       console.error('[Feedback] Unexpected error:', err);
       toast.error('Erreur inattendue.');
+    } finally {
+      setSendingFeedback(false);
     }
-    setSendingFeedback(false);
   };
 
   const handleUpdateEmail = async () => {
