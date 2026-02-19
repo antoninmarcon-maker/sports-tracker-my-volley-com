@@ -1,4 +1,4 @@
-import { SetData } from '@/types/volleyball';
+import { SetData, SportType } from '@/types/volleyball';
 import { ChevronDown, ChevronUp, Trophy, Clock } from 'lucide-react';
 import { useState } from 'react';
 
@@ -8,6 +8,7 @@ interface SetHistoryProps {
   setsScore: { blue: number; red: number };
   teamNames: { blue: string; red: string };
   isFinished?: boolean;
+  sport?: SportType;
 }
 
 function formatDuration(seconds: number) {
@@ -16,7 +17,8 @@ function formatDuration(seconds: number) {
   return `${m}min ${s.toString().padStart(2, '0')}s`;
 }
 
-export function SetHistory({ completedSets, currentSetNumber, setsScore, teamNames, isFinished = false }: SetHistoryProps) {
+export function SetHistory({ completedSets, currentSetNumber, setsScore, teamNames, isFinished = false, sport = 'volleyball' }: SetHistoryProps) {
+  const periodLabel = sport === 'basketball' ? 'QT' : 'SET';
   const [expandedSet, setExpandedSet] = useState<string | null>(null);
 
   if (completedSets.length === 0 && currentSetNumber === 1) return null;
@@ -27,7 +29,7 @@ export function SetHistory({ completedSets, currentSetNumber, setsScore, teamNam
       <div className="flex items-center justify-between bg-card rounded-xl p-3 border border-border">
         <div className="flex items-center gap-2">
           <Trophy size={14} className="text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sets</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{sport === 'basketball' ? 'Quart-temps' : 'Sets'}</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-black text-team-blue">{setsScore.blue}</span>
@@ -41,7 +43,7 @@ export function SetHistory({ completedSets, currentSetNumber, setsScore, teamNam
               : setsScore.red > setsScore.blue
               ? `🏆 ${teamNames.red}`
               : 'Égalité')
-            : `Set ${currentSetNumber} en cours`}
+            : `${periodLabel} ${currentSetNumber} en cours`}
         </span>
       </div>
 
@@ -53,7 +55,7 @@ export function SetHistory({ completedSets, currentSetNumber, setsScore, teamNam
             className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-secondary/50 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground">SET {set.number}</span>
+              <span className="text-xs font-bold text-muted-foreground">{periodLabel} {set.number}</span>
               <div className={`w-2 h-2 rounded-full ${set.winner === 'blue' ? 'bg-team-blue' : 'bg-team-red'}`} />
               {set.duration > 0 && (
                 <span className="flex items-center gap-1 text-[10px] text-muted-foreground">

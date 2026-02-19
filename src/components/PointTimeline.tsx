@@ -11,7 +11,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-const ACTION_LABELS: Record<ActionType, { abbr: string; full: string }> = {
+const ACTION_LABELS: Partial<Record<ActionType, { abbr: string; full: string }>> = {
   attack: { abbr: 'ATK', full: 'Attaque' },
   ace: { abbr: 'ACE', full: 'Ace' },
   block: { abbr: 'BLK', full: 'Block' },
@@ -22,6 +22,13 @@ const ACTION_LABELS: Record<ActionType, { abbr: string; full: string }> = {
   net_fault: { abbr: 'FIL', full: 'Filet' },
   service_miss: { abbr: 'SRV', full: 'Service loupé' },
   block_out: { abbr: 'BKO', full: 'Block Out' },
+  // Basketball
+  free_throw: { abbr: '1PT', full: 'Lancer franc' },
+  two_points: { abbr: '2PT', full: 'Intérieur' },
+  three_points: { abbr: '3PT', full: 'Extérieur' },
+  missed_shot: { abbr: 'MIS', full: 'Tir manqué' },
+  turnover: { abbr: 'TOV', full: 'Perte de balle' },
+  foul_committed: { abbr: 'FOU', full: 'Faute commise' },
 };
 
 interface PointTimelineProps {

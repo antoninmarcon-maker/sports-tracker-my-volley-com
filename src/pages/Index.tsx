@@ -4,12 +4,12 @@ import { Activity, BarChart3, HelpCircle, X, ArrowLeft } from 'lucide-react';
 import { useMatchState } from '@/hooks/useMatchState';
 import { ScoreBoard } from '@/components/ScoreBoard';
 import { VolleyballCourt } from '@/components/VolleyballCourt';
+import { BasketballCourt } from '@/components/BasketballCourt';
 import { HeatmapView } from '@/components/HeatmapView';
 import { SetHistory } from '@/components/SetHistory';
 import { PlayerRoster } from '@/components/PlayerRoster';
 import { PlayerSelector } from '@/components/PlayerSelector';
 import { getMatch } from '@/lib/matchStorage';
-import { isOffensiveAction } from '@/types/volleyball';
 
 type Tab = 'match' | 'stats';
 
@@ -18,7 +18,6 @@ const Index = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('match');
   const [showHelp, setShowHelp] = useState(false);
-  
 
   const matchState = useMatchState(matchId ?? '');
 
@@ -30,7 +29,7 @@ const Index = () => {
     points, allPoints, selectedTeam, selectedPointType, selectedAction,
     score, stats, setsScore, currentSetNumber, completedSets,
     teamNames, sidesSwapped, chronoRunning, chronoSeconds,
-    players, pendingPoint, servingTeam,
+    players, pendingPoint, servingTeam, sport,
     setTeamNames, setPlayers, selectAction, cancelSelection, addPoint,
     assignPlayer, skipPlayerAssignment,
     undo, endSet, startNewSet, waitingForNewSet, resetMatch, switchSides, startChrono, pauseChrono,
@@ -38,6 +37,9 @@ const Index = () => {
 
   const matchData = getMatch(matchId);
   const isFinished = matchData?.finished ?? false;
+  const isBasketball = sport === 'basketball';
+  const sportIcon = isBasketball ? '🏀' : '🏐';
+  const periodLabel = isBasketball ? 'QT' : 'Set';
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -49,7 +51,7 @@ const Index = () => {
           <ArrowLeft size={18} />
         </button>
         <h1 className="text-lg font-black text-foreground tracking-tight text-center">
-          🏐 My Volley
+          {sportIcon} My Volley
         </h1>
         {tab === 'match' ? (
           <button
@@ -89,6 +91,7 @@ const Index = () => {
               setsScore={setsScore}
               teamNames={teamNames}
               isFinished={isFinished}
+              sport={sport}
             />
             <PlayerRoster
               players={players}
@@ -105,6 +108,7 @@ const Index = () => {
               chronoRunning={chronoRunning}
               chronoSeconds={chronoSeconds}
               servingTeam={servingTeam}
+              sport={sport}
               onSelectAction={selectAction}
               onCancelSelection={cancelSelection}
               onUndo={undo}
@@ -119,18 +123,30 @@ const Index = () => {
               waitingForNewSet={waitingForNewSet}
               onStartNewSet={startNewSet}
             />
-            <VolleyballCourt
-              points={points}
-              selectedTeam={selectedTeam}
-              selectedAction={selectedAction}
-              selectedPointType={selectedPointType}
-              sidesSwapped={sidesSwapped}
-              teamNames={teamNames}
-              onCourtClick={addPoint}
-            />
+            {isBasketball ? (
+              <BasketballCourt
+                points={points}
+                selectedTeam={selectedTeam}
+                selectedAction={selectedAction}
+                selectedPointType={selectedPointType}
+                sidesSwapped={sidesSwapped}
+                teamNames={teamNames}
+                onCourtClick={addPoint}
+              />
+            ) : (
+              <VolleyballCourt
+                points={points}
+                selectedTeam={selectedTeam}
+                selectedAction={selectedAction}
+                selectedPointType={selectedPointType}
+                sidesSwapped={sidesSwapped}
+                teamNames={teamNames}
+                onCourtClick={addPoint}
+              />
+            )}
           </div>
         ) : (
-          <HeatmapView points={allPoints} completedSets={completedSets} currentSetPoints={points} currentSetNumber={currentSetNumber} stats={stats} teamNames={teamNames} players={players} />
+          <HeatmapView points={allPoints} completedSets={completedSets} currentSetPoints={points} currentSetNumber={currentSetNumber} stats={stats} teamNames={teamNames} players={players} sport={sport} />
         )}
 
         {/* Player assignment modal */}
@@ -160,12 +176,24 @@ const Index = () => {
             </button>
             <h2 className="text-lg font-bold text-foreground">Comment ça marche ?</h2>
             <div className="text-sm text-muted-foreground space-y-2">
-              <p><strong className="text-foreground">1. Appuyez sur « + »</strong> sous le score de l'équipe concernée. Une flèche animée indique l'équipe sélectionnée.</p>
-              <p><strong className="text-foreground">2. Choisissez l'onglet</strong> : <em>Points Gagnés</em> (Attaque, Ace, Block, Bidouille, Seconde main) ou <em>Fautes Adverses</em> (Out, Filet, Service loupé, Block Out).</p>
-              <p><strong className="text-foreground">3. Cliquez sur l'action</strong> puis placez-la sur le terrain (zone autorisée illuminée) et sélectionnez le joueur.</p>
-              <p><strong className="text-foreground">4. Gérez les sets</strong> : « Fin du Set » termine et inverse les côtés. Le gagnant 🏆 = le plus de sets remportés.</p>
-              <p><strong className="text-foreground">5. Statistiques</strong> : onglet Stats pour voir les points ⚡ et fautes ❌ par joueur (dépliables) + heatmap.</p>
-              <p><strong className="text-foreground">6. Exportez & Partagez</strong> : stats PNG, terrain par set, Excel, ou partagez le score via WhatsApp / Telegram / X.</p>
+              {isBasketball ? (
+                <>
+                  <p><strong className="text-foreground">1. Appuyez sur « + »</strong> sous le score de l'équipe concernée.</p>
+                  <p><strong className="text-foreground">2. Choisissez l'onglet</strong> : <em>Paniers</em> (1pt Lancer franc, 2pts Intérieur, 3pts Extérieur) ou <em>Actions négatives</em> (Tir manqué, Perte de balle, Faute commise).</p>
+                  <p><strong className="text-foreground">3. Placez sur le terrain</strong> : pour les 3pts, seule la zone au-delà de l'arc est cliquable. Sélectionnez ensuite le joueur.</p>
+                  <p><strong className="text-foreground">4. Quart-temps</strong> : « Fin QT » termine la période en cours.</p>
+                  <p><strong className="text-foreground">5. Statistiques</strong> : onglet Stats pour voir les paniers et fautes par joueur + heatmap des tirs.</p>
+                </>
+              ) : (
+                <>
+                  <p><strong className="text-foreground">1. Appuyez sur « + »</strong> sous le score de l'équipe concernée. Une flèche animée indique l'équipe sélectionnée.</p>
+                  <p><strong className="text-foreground">2. Choisissez l'onglet</strong> : <em>Points Gagnés</em> (Attaque, Ace, Block, Bidouille, Seconde main) ou <em>Fautes Adverses</em> (Out, Filet, Service loupé, Block Out).</p>
+                  <p><strong className="text-foreground">3. Cliquez sur l'action</strong> puis placez-la sur le terrain (zone autorisée illuminée) et sélectionnez le joueur.</p>
+                  <p><strong className="text-foreground">4. Gérez les sets</strong> : « Fin du Set » termine et inverse les côtés. Le gagnant 🏆 = le plus de sets remportés.</p>
+                  <p><strong className="text-foreground">5. Statistiques</strong> : onglet Stats pour voir les points ⚡ et fautes ❌ par joueur (dépliables) + heatmap.</p>
+                  <p><strong className="text-foreground">6. Exportez & Partagez</strong> : stats PNG, terrain par set, Excel, ou partagez le score via WhatsApp / Telegram / X.</p>
+                </>
+              )}
             </div>
           </div>
         </div>

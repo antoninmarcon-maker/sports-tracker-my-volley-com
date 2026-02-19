@@ -17,11 +17,12 @@ const PointSchema = z.object({
   id: z.string(),
   team: z.enum(['blue', 'red']),
   type: z.enum(['scored', 'fault']),
-  action: z.enum(['attack', 'ace', 'block', 'bidouille', 'seconde_main', 'other_offensive', 'out', 'net_fault', 'service_miss', 'block_out']),
+  action: z.enum(['attack', 'ace', 'block', 'bidouille', 'seconde_main', 'other_offensive', 'out', 'net_fault', 'service_miss', 'block_out', 'free_throw', 'two_points', 'three_points', 'missed_shot', 'turnover', 'foul_committed']),
   x: z.number(),
   y: z.number(),
   timestamp: z.number(),
   playerId: z.string().optional(),
+  pointValue: z.number().optional(),
 });
 
 const SetDataSchema = z.object({
@@ -45,6 +46,7 @@ const MatchSummarySchema = z.object({
   updatedAt: z.number(),
   finished: z.boolean(),
   players: z.array(PlayerSchema).optional(),
+  sport: z.enum(['volleyball', 'basketball']).optional(),
 });
 
 // --- Storage functions ---
@@ -104,7 +106,7 @@ export function getLastRoster(): Player[] {
   } catch { return []; }
 }
 
-export function createNewMatch(teamNames: { blue: string; red: string }): MatchSummary {
+export function createNewMatch(teamNames: { blue: string; red: string }, sport: 'volleyball' | 'basketball' = 'volleyball'): MatchSummary {
   const lastRoster = getLastRoster();
   return {
     id: crypto.randomUUID(),
@@ -118,5 +120,6 @@ export function createNewMatch(teamNames: { blue: string; red: string }): MatchS
     createdAt: Date.now(),
     updatedAt: Date.now(),
     finished: false,
+    sport,
   };
 }

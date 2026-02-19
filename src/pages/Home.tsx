@@ -4,7 +4,7 @@ import { Plus, History, Trash2, Eye, Play, Info, CheckCircle2 } from 'lucide-rea
 import logoCapbreton from '@/assets/logo-capbreton.jpeg';
 import { Input } from '@/components/ui/input';
 import { getAllMatches, createNewMatch, saveMatch, setActiveMatchId, deleteMatch, getMatch } from '@/lib/matchStorage';
-import { MatchSummary, SetData, Team } from '@/types/volleyball';
+import { MatchSummary, SetData, Team, SportType } from '@/types/volleyball';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 
 function formatDate(ts: number) {
@@ -25,15 +25,14 @@ function Instructions() {
         <h3 className="text-sm font-bold text-foreground">Comment ça marche ?</h3>
       </div>
       <div className="text-sm text-muted-foreground space-y-2">
-        <p><strong className="text-foreground">1. Créez un match</strong> en appuyant sur « Nouveau Match » et nommez les deux équipes.</p>
+        <p><strong className="text-foreground">1. Créez un match</strong> en choisissant le sport (🏐 Volley ou 🏀 Basket) et nommez les deux équipes.</p>
         <p><strong className="text-foreground">2. Définissez votre roster</strong> : ajoutez les joueurs (numéro + nom) pour suivre leurs stats individuelles.</p>
-        <p><strong className="text-foreground">3. Appuyez sur « + »</strong> sous le score de l'équipe qui marque. Une flèche animée indique l'équipe sélectionnée.</p>
-        <p><strong className="text-foreground">4. Choisissez l'action</strong> : <em>Points Gagnés</em> (Attaque, Ace, Block, Bidouille, Seconde main) ou <em>Fautes Adverses</em> (Out, Filet, Service loupé, Block Out).</p>
+        <p><strong className="text-foreground">3. Appuyez sur « + »</strong> sous le score de l'équipe qui marque.</p>
+        <p><strong className="text-foreground">4. Choisissez l'action</strong> adaptée au sport sélectionné.</p>
         <p><strong className="text-foreground">5. Placez sur le terrain</strong> : la zone autorisée s'illumine. Cliquez puis sélectionnez le joueur concerné.</p>
-        <p><strong className="text-foreground">6. Gérez les sets</strong> : « Fin du Set » termine et inverse les côtés. Le gagnant du match est l'équipe avec le plus de sets remportés 🏆.</p>
-        <p><strong className="text-foreground">7. Statistiques</strong> : consultez les stats par joueur (points ⚡ et fautes ❌ dépliables) et la heatmap des actions.</p>
-        <p><strong className="text-foreground">8. Exportez & Partagez</strong> : téléchargez stats PNG, terrain par set, Excel ou partagez le score via WhatsApp, Telegram, X.</p>
-        <p><strong className="text-foreground">9. Installez l'app</strong> : sur mobile, suivez le bandeau pour ajouter l'app à votre écran d'accueil (hors-ligne supporté).</p>
+        <p><strong className="text-foreground">6. Gérez les périodes</strong> : « Fin du Set/Quart-temps » termine la période en cours.</p>
+        <p><strong className="text-foreground">7. Statistiques</strong> : consultez les stats par joueur et la heatmap des actions.</p>
+        <p><strong className="text-foreground">8. Exportez & Partagez</strong> : téléchargez stats PNG, terrain par set, Excel ou partagez le score.</p>
       </div>
     </div>
   );
@@ -43,13 +42,14 @@ export default function Home() {
   const navigate = useNavigate();
   const [showNew, setShowNew] = useState(false);
   const [names, setNames] = useState({ blue: '', red: '' });
+  const [selectedSport, setSelectedSport] = useState<SportType>('volleyball');
   const [matches, setMatches] = useState<MatchSummary[]>(() => getAllMatches().sort((a, b) => b.updatedAt - a.updatedAt));
 
   const handleCreate = () => {
     const match = createNewMatch({
       blue: names.blue.trim() || 'Bleue',
       red: names.red.trim() || 'Rouge',
-    });
+    }, selectedSport);
     saveMatch(match);
     setActiveMatchId(match.id);
     navigate(`/match/${match.id}`);
@@ -65,10 +65,16 @@ export default function Home() {
   const handleFinishMatch = (id: string) => {
     const match = getMatch(id);
     if (!match) return;
-    // End current set if there are points
     if (match.points.length > 0) {
-      const blueScore = match.points.filter(p => p.team === 'blue').length;
-      const redScore = match.points.filter(p => p.team === 'red').length;
+      const sport = match.sport ?? 'volleyball';
+      let blueScore: number, redScore: number;
+      if (sport === 'basketball') {
+        blueScore = match.points.filter(p => p.team === 'blue' && p.type === 'scored').reduce((s, p) => s + (p.pointValue ?? 0), 0);
+        redScore = match.points.filter(p => p.team === 'red' && p.type === 'scored').reduce((s, p) => s + (p.pointValue ?? 0), 0);
+      } else {
+        blueScore = match.points.filter(p => p.team === 'blue').length;
+        redScore = match.points.filter(p => p.team === 'red').length;
+      }
       const winner: Team = blueScore >= redScore ? 'blue' : 'red';
       const setData: SetData = {
         id: crypto.randomUUID(),
@@ -91,6 +97,8 @@ export default function Home() {
     navigate(`/match/${id}`);
   };
 
+  const sportIcon = (sport?: SportType) => sport === 'basketball' ? '🏀' : '🏐';
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="px-4 py-6 border-b border-border flex flex-col items-center gap-3">
@@ -99,7 +107,7 @@ export default function Home() {
           <h1 className="text-2xl font-black text-foreground tracking-tight text-center">
             🏐 My Volley
           </h1>
-          <p className="text-sm text-muted-foreground text-center mt-1">Suivi de matchs de volley-ball</p>
+          <p className="text-sm text-muted-foreground text-center mt-1">Suivi de matchs multi-sports</p>
         </div>
       </header>
 
@@ -119,6 +127,34 @@ export default function Home() {
         ) : (
           <div className="bg-card rounded-xl p-5 border border-border space-y-4">
             <h2 className="text-base font-bold text-foreground">Créer un match</h2>
+            
+            {/* Sport selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground block">Sport</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedSport('volleyball')}
+                  className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
+                    selectedSport === 'volleyball'
+                      ? 'bg-primary/15 text-primary border-primary/40'
+                      : 'bg-secondary text-secondary-foreground border-transparent hover:bg-secondary/80'
+                  }`}
+                >
+                  🏐 Volley-ball
+                </button>
+                <button
+                  onClick={() => setSelectedSport('basketball')}
+                  className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all border-2 ${
+                    selectedSport === 'basketball'
+                      ? 'bg-orange-500/15 text-orange-500 border-orange-500/40'
+                      : 'bg-secondary text-secondary-foreground border-transparent hover:bg-secondary/80'
+                  }`}
+                >
+                  🏀 Basket-ball
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-team-blue mb-1 block">Équipe Bleue <span className="text-muted-foreground font-normal">· votre équipe (roster configurable)</span></label>
@@ -176,6 +212,7 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 text-sm font-bold">
+                          <span className="text-base">{sportIcon(match.sport)}</span>
                           <span className="text-team-blue">{match.teamNames.blue}</span>
                           <span className="text-muted-foreground text-xs">vs</span>
                           <span className="text-team-red">{match.teamNames.red}</span>
@@ -187,7 +224,7 @@ export default function Home() {
                         <p className="text-[11px] text-muted-foreground">
                           {match.finished
                             ? (sc.blue > sc.red ? `🏆 ${match.teamNames.blue}` : sc.red > sc.blue ? `🏆 ${match.teamNames.red}` : 'Égalité')
-                            : `Set ${match.currentSetNumber} en cours`} · {totalPoints} pts
+                            : `${match.sport === 'basketball' ? 'QT' : 'Set'} ${match.currentSetNumber} en cours`} · {totalPoints} pts
                         </p>
                       </div>
                     </div>
@@ -228,7 +265,7 @@ export default function Home() {
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full border border-border space-y-4" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-foreground text-center">Terminer le match ?</h2>
             <p className="text-sm text-muted-foreground text-center">
-              Le set en cours sera finalisé et le match sera marqué comme terminé. Cette action est irréversible.
+              La période en cours sera finalisée et le match sera marqué comme terminé. Cette action est irréversible.
             </p>
             <div className="flex gap-3">
               <button

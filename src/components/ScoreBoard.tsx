@@ -1,5 +1,5 @@
 import { Undo2, RotateCcw, Flag, ArrowLeftRight, Play, Pause, Timer, Pencil, Plus, X, ChevronDown } from 'lucide-react';
-import { Team, PointType, ActionType, OffensiveAction, FaultAction, OFFENSIVE_ACTIONS, FAULT_ACTIONS } from '@/types/volleyball';
+import { Team, PointType, ActionType, OffensiveAction, FaultAction, OFFENSIVE_ACTIONS, FAULT_ACTIONS, SportType, BASKET_SCORED_ACTIONS, BASKET_FAULT_ACTIONS } from '@/types/volleyball';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 
@@ -13,6 +13,7 @@ interface ScoreBoardProps {
   chronoRunning: boolean;
   chronoSeconds: number;
   servingTeam: Team | null;
+  sport: SportType;
   onSelectAction: (team: Team, type: PointType, action: ActionType) => void;
   onCancelSelection: () => void;
   onUndo: () => void;
@@ -56,6 +57,7 @@ export function ScoreBoard({
   chronoRunning,
   chronoSeconds,
   servingTeam,
+  sport,
   isFinished = false,
   waitingForNewSet = false,
   onStartNewSet,
@@ -65,6 +67,9 @@ export function ScoreBoard({
   const [menuTeam, setMenuTeam] = useState<Team | null>(null);
   const [menuTab, setMenuTab] = useState<MenuTab>('scored');
   const [confirmEndSet, setConfirmEndSet] = useState(false);
+
+  const isBasketball = sport === 'basketball';
+  const periodLabel = isBasketball ? 'QT' : 'Set';
 
   const left: Team = sidesSwapped ? 'red' : 'blue';
   const right: Team = sidesSwapped ? 'blue' : 'red';
@@ -93,11 +98,34 @@ export function ScoreBoard({
     setMenuTeam(null);
   };
 
+  // Get filtered actions based on sport and context
+  const getScoredActions = () => {
+    if (isBasketball) return BASKET_SCORED_ACTIONS;
+    return OFFENSIVE_ACTIONS.filter(a => {
+      if (!servingTeam || !menuTeam) return true;
+      if (a.key === 'ace' && servingTeam !== menuTeam) return false;
+      return true;
+    });
+  };
+
+  const getFaultActions = () => {
+    if (isBasketball) return BASKET_FAULT_ACTIONS;
+    return FAULT_ACTIONS.filter(a => {
+      if (!servingTeam || !menuTeam) return true;
+      if (a.key === 'service_miss' && servingTeam === menuTeam) return false;
+      return true;
+    });
+  };
+
+  const allActions = isBasketball
+    ? [...BASKET_SCORED_ACTIONS, ...BASKET_FAULT_ACTIONS]
+    : [...OFFENSIVE_ACTIONS, ...FAULT_ACTIONS];
+
   return (
     <div className="space-y-3">
       {/* Set + Chrono */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Set {currentSetNumber}</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{periodLabel} {currentSetNumber}</p>
         <div className="flex items-center gap-2">
           <Timer size={14} className="text-muted-foreground" />
           <span className="text-sm font-mono font-bold text-foreground tabular-nums">{formatTime(chronoSeconds)}</span>
@@ -146,7 +174,7 @@ export function ScoreBoard({
         <div className="flex-1 text-center">
           <div className="flex items-center justify-center gap-1.5">
             <p className={`text-xs font-semibold uppercase tracking-widest ${left === 'blue' ? 'text-team-blue' : 'text-team-red'}`}>{teamNames[left]}</p>
-            {servingTeam === left && <span className="text-[10px]" title="Au service">🏐</span>}
+            {!isBasketball && servingTeam === left && <span className="text-[10px]" title="Au service">🏐</span>}
           </div>
           <p className={`text-5xl font-black tabular-nums ${left === 'blue' ? 'text-team-blue' : 'text-team-red'}`}>{score[left]}</p>
           {menuTeam === left && (
@@ -170,7 +198,7 @@ export function ScoreBoard({
         <div className="flex-1 text-center">
           <div className="flex items-center justify-center gap-1.5">
             <p className={`text-xs font-semibold uppercase tracking-widest ${right === 'blue' ? 'text-team-blue' : 'text-team-red'}`}>{teamNames[right]}</p>
-            {servingTeam === right && <span className="text-[10px]" title="Au service">🏐</span>}
+            {!isBasketball && servingTeam === right && <span className="text-[10px]" title="Au service">🏐</span>}
           </div>
           <p className={`text-5xl font-black tabular-nums ${right === 'blue' ? 'text-team-blue' : 'text-team-red'}`}>{score[right]}</p>
           {menuTeam === right && (
@@ -203,7 +231,7 @@ export function ScoreBoard({
                   menuTab === 'scored' ? 'bg-action-scored text-action-scored-foreground' : 'bg-secondary text-secondary-foreground'
                 }`}
               >
-                ⚡ Points Gagnés
+                ⚡ {isBasketball ? 'Paniers' : 'Points Gagnés'}
               </button>
               <button
                 onClick={() => setMenuTab('fault')}
@@ -211,7 +239,7 @@ export function ScoreBoard({
                   menuTab === 'fault' ? 'bg-action-fault text-action-fault-foreground' : 'bg-secondary text-secondary-foreground'
                 }`}
               >
-                ❌ Fautes Adverses
+                ❌ {isBasketball ? 'Actions négatives' : 'Fautes Adverses'}
               </button>
             </div>
             <button onClick={closeMenu} className="p-1 rounded-md text-muted-foreground hover:text-foreground">
@@ -220,16 +248,7 @@ export function ScoreBoard({
           </div>
           {/* Actions */}
           <div className="grid grid-cols-3 gap-1.5">
-            {(menuTab === 'scored' ? OFFENSIVE_ACTIONS : FAULT_ACTIONS)
-              .filter(a => {
-                if (!servingTeam || !menuTeam) return true;
-                // If menuTeam scores via ace → menuTeam must be serving
-                if (menuTab === 'scored' && a.key === 'ace' && servingTeam !== menuTeam) return false;
-                // If menuTeam scores via opponent's service_miss fault → opponent must be serving
-                if (menuTab === 'fault' && a.key === 'service_miss' && servingTeam === menuTeam) return false;
-                return true;
-              })
-              .map(a => (
+            {(menuTab === 'scored' ? getScoredActions() : getFaultActions()).map(a => (
               <button
                 key={a.key}
                 onClick={() => handleActionSelect(a.key)}
@@ -251,7 +270,7 @@ export function ScoreBoard({
         <div className="flex items-center justify-between bg-accent/50 rounded-lg p-2.5 border border-accent">
           <p className="text-sm text-foreground">
             <span className="font-bold">{teamNames[selectedTeam]}</span> — {
-              [...OFFENSIVE_ACTIONS, ...FAULT_ACTIONS].find(a => a.key === selectedAction)?.label
+              allActions.find(a => a.key === selectedAction)?.label
             }
           </p>
           <div className="flex items-center gap-2">
@@ -271,13 +290,13 @@ export function ScoreBoard({
       ) : waitingForNewSet ? (
         <div className="space-y-2">
           <div className="bg-primary/10 rounded-lg p-3 text-center border border-primary/20">
-            <p className="text-xs font-semibold text-primary">Set terminé ! Prêt pour le suivant ?</p>
+            <p className="text-xs font-semibold text-primary">{periodLabel} terminé ! Prêt pour le suivant ?</p>
           </div>
           <button
             onClick={onStartNewSet}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm transition-all active:scale-[0.98] hover:opacity-90"
           >
-            <Play size={16} /> Nouveau Set
+            <Play size={16} /> Nouveau {periodLabel}
           </button>
         </div>
       ) : (
@@ -300,7 +319,7 @@ export function ScoreBoard({
             disabled={!canUndo}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-all"
           >
-            <Flag size={16} /> Fin du Set
+            <Flag size={16} /> Fin {periodLabel}
           </button>
         </div>
       )}
@@ -308,9 +327,9 @@ export function ScoreBoard({
       {confirmEndSet && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setConfirmEndSet(false)}>
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full border border-border space-y-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-foreground text-center">Terminer le set ?</h2>
+            <h2 className="text-lg font-bold text-foreground text-center">Terminer le {periodLabel.toLowerCase()} ?</h2>
             <p className="text-sm text-muted-foreground text-center">
-              Score actuel : <span className="font-bold text-team-blue">{score.blue}</span> – <span className="font-bold text-team-red">{score.red}</span>. Les côtés seront inversés.
+              Score actuel : <span className="font-bold text-team-blue">{score.blue}</span> – <span className="font-bold text-team-red">{score.red}</span>.{!isBasketball && ' Les côtés seront inversés.'}
             </p>
             <div className="flex gap-3">
               <button

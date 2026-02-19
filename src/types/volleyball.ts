@@ -1,12 +1,16 @@
 export type Team = 'blue' | 'red';
 export type PointType = 'scored' | 'fault';
+export type SportType = 'volleyball' | 'basketball';
 
-// Offensive actions (points gagnés)
+// ---- VOLLEYBALL ----
 export type OffensiveAction = 'attack' | 'ace' | 'block' | 'bidouille' | 'seconde_main' | 'other_offensive';
-// Fault actions (fautes commises)
 export type FaultAction = 'out' | 'net_fault' | 'service_miss' | 'block_out';
 
-export type ActionType = OffensiveAction | FaultAction;
+// ---- BASKETBALL ----
+export type BasketScoredAction = 'free_throw' | 'two_points' | 'three_points';
+export type BasketFaultAction = 'missed_shot' | 'turnover' | 'foul_committed';
+
+export type ActionType = OffensiveAction | FaultAction | BasketScoredAction | BasketFaultAction;
 
 export const OFFENSIVE_ACTIONS: { key: OffensiveAction; label: string }[] = [
   { key: 'attack', label: 'Attaque' },
@@ -24,8 +28,30 @@ export const FAULT_ACTIONS: { key: FaultAction; label: string }[] = [
   { key: 'block_out', label: 'Block Out' },
 ];
 
+// Basketball actions
+export const BASKET_SCORED_ACTIONS: { key: BasketScoredAction; label: string; points: number }[] = [
+  { key: 'free_throw', label: 'Lancer franc (1pt)', points: 1 },
+  { key: 'two_points', label: 'Intérieur (2pts)', points: 2 },
+  { key: 'three_points', label: 'Extérieur (3pts)', points: 3 },
+];
+
+export const BASKET_FAULT_ACTIONS: { key: BasketFaultAction; label: string }[] = [
+  { key: 'missed_shot', label: 'Tir manqué' },
+  { key: 'turnover', label: 'Perte de balle' },
+  { key: 'foul_committed', label: 'Faute commise' },
+];
+
 export function isOffensiveAction(action: ActionType): boolean {
   return ['attack', 'ace', 'block', 'bidouille', 'seconde_main', 'other_offensive'].includes(action);
+}
+
+export function isBasketScoredAction(action: ActionType): action is BasketScoredAction {
+  return ['free_throw', 'two_points', 'three_points'].includes(action);
+}
+
+export function getBasketPointValue(action: ActionType): number {
+  const found = BASKET_SCORED_ACTIONS.find(a => a.key === action);
+  return found?.points ?? 0;
 }
 
 export interface Player {
@@ -42,7 +68,8 @@ export interface Point {
   x: number;
   y: number;
   timestamp: number;
-  playerId?: string; // Blue team player involved
+  playerId?: string;
+  pointValue?: number; // For basketball: 1, 2 or 3
 }
 
 export interface SetData {
@@ -51,7 +78,7 @@ export interface SetData {
   points: Point[];
   score: { blue: number; red: number };
   winner: Team | null;
-  duration: number; // seconds
+  duration: number;
 }
 
 export interface MatchState {
@@ -73,7 +100,7 @@ export interface MatchSummary {
   updatedAt: number;
   finished: boolean;
   players?: Player[];
+  sport?: SportType;
 }
 
-// Zone constraint type for court clicking
 export type CourtZone = 'opponent_court' | 'outside_opponent' | 'net_line' | 'outside_own';
