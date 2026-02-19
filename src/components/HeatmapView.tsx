@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Download, ChevronDown, Copy, Image, FileSpreadsheet, Map, Share2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { Point, SetData, Player, isOffensiveAction, OFFENSIVE_ACTIONS, FAULT_ACTIONS } from '@/types/volleyball';
+import { Point, SetData, Player, isOffensiveAction, isBasketScoredAction, SportType, OFFENSIVE_ACTIONS, FAULT_ACTIONS, BASKET_SCORED_ACTIONS, BASKET_FAULT_ACTIONS } from '@/types/volleyball';
 import { PointTimeline } from './PointTimeline';
 import { CourtDisplay } from './CourtDisplay';
 import { PlayerStats } from './PlayerStats';
@@ -26,6 +26,7 @@ interface HeatmapViewProps {
   };
   teamNames: { blue: string; red: string };
   players?: Player[];
+  sport?: SportType;
 }
 
 type SetFilter = 'all' | number;
@@ -50,21 +51,20 @@ function createStatRow(label: string, value: string | number, opts?: { bold?: bo
   return row;
 }
 
-function buildExportContainer(teamNames: { blue: string; red: string }, label: string, ds: ReturnType<typeof computeStats>): HTMLElement {
+function buildExportContainer(teamNames: { blue: string; red: string }, label: string, ds: ReturnType<typeof computeStats>, sport: SportType = 'volleyball'): HTMLElement {
+  const isBasket = sport === 'basketball';
   const container = document.createElement('div');
   container.style.cssText = 'position:absolute;left:-9999px;top:0;width:400px;';
   container.className = 'bg-background rounded-2xl p-4 space-y-3';
 
-  // Header
   const header = createStyledEl('div', { textAlign: 'center' });
   const title = createStyledEl('p', { fontSize: '16px', fontWeight: '900', color: 'hsl(var(--foreground))' });
-  title.textContent = `🏐 ${teamNames.blue} vs ${teamNames.red}`;
+  title.textContent = `${isBasket ? '🏀' : '🏐'} ${teamNames.blue} vs ${teamNames.red}`;
   header.appendChild(title);
   const subtitle = createStyledEl('p', { fontSize: '10px', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.1em' }, label);
   header.appendChild(subtitle);
   container.appendChild(header);
 
-  // Team stats grid
   const grid = createStyledEl('div', { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' });
   for (const team of ['blue', 'red'] as const) {
     const card = createStyledEl('div', { background: 'hsl(var(--card))', borderRadius: '12px', padding: '12px', border: '1px solid hsl(var(--border))' });
@@ -74,60 +74,78 @@ function buildExportContainer(teamNames: { blue: string; red: string }, label: s
     }, teamNames[team]);
     card.appendChild(teamTitle);
 
-    const stats = createStyledEl('div', { fontSize: '11px', color: 'hsl(var(--foreground))' });
-    stats.appendChild(createStatRow('⚡ Gagnés', ds[team].scored, { bold: true }));
-    for (const [l, v] of [['Attaques', ds[team].attacks], ['Aces', ds[team].aces], ['Blocks', ds[team].blocks], ['Bidouilles', ds[team].bidouilles], ['2ndes mains', ds[team].secondeMains], ['Autres', ds[team].otherOffensive]] as [string, number][]) {
-      stats.appendChild(createStatRow(l, v, { indent: true }));
-    }
-    stats.appendChild(createStatRow('❌ Fautes adverses', ds[team].faults, { bold: true, borderTop: true, valueColor: 'hsl(var(--destructive))' }));
-    for (const [l, v] of [['Out', ds[team].outs], ['Filet', ds[team].netFaults], ['Srv loupés', ds[team].serviceMisses], ['Block Out', ds[team].blockOuts]] as [string, number][]) {
-      stats.appendChild(createStatRow(l, v, { indent: true }));
-    }
-    stats.appendChild(createStatRow('Total', ds[team].scored + ds[team].faults, { borderTop: true }));
-    card.appendChild(stats);
+    const statsEl = createStyledEl('div', { fontSize: '11px', color: 'hsl(var(--foreground))' });
+    statsEl.appendChild(createStatRow(isBasket ? '🏀 Points' : '⚡ Gagnés', ds[team].scored, { bold: true }));
+    const scoredRows = isBasket
+      ? [['LF (1pt)', ds[team].freeThrows], ['Int. (2pts)', ds[team].twoPoints], ['Ext. (3pts)', ds[team].threePoints]] as [string, number][]
+      : [['Attaques', ds[team].attacks], ['Aces', ds[team].aces], ['Blocks', ds[team].blocks], ['Bidouilles', ds[team].bidouilles], ['2ndes mains', ds[team].secondeMains], ['Autres', ds[team].otherOffensive]] as [string, number][];
+    for (const [l, v] of scoredRows) statsEl.appendChild(createStatRow(l, v, { indent: true }));
+    statsEl.appendChild(createStatRow('❌ ' + (isBasket ? 'Négatifs' : 'Fautes adv.'), ds[team].faults, { bold: true, borderTop: true, valueColor: 'hsl(var(--destructive))' }));
+    const faultRows = isBasket
+      ? [['Tirs manqués', ds[team].missedShots], ['Pertes', ds[team].turnovers], ['Fautes', ds[team].foulsCommitted]] as [string, number][]
+      : [['Out', ds[team].outs], ['Filet', ds[team].netFaults], ['Srv loupés', ds[team].serviceMisses], ['Block Out', ds[team].blockOuts]] as [string, number][];
+    for (const [l, v] of faultRows) statsEl.appendChild(createStatRow(l, v, { indent: true }));
+    statsEl.appendChild(createStatRow('Total', ds[team].scored + ds[team].faults, { borderTop: true }));
+    card.appendChild(statsEl);
     grid.appendChild(card);
   }
   container.appendChild(grid);
 
-  // Total
   const totalCard = createStyledEl('div', { textAlign: 'center', background: 'hsl(var(--card))', borderRadius: '12px', padding: '12px', border: '1px solid hsl(var(--border))' });
   totalCard.appendChild(createStyledEl('p', { fontSize: '24px', fontWeight: '900', color: 'hsl(var(--foreground))' }, String(ds.total)));
-  totalCard.appendChild(createStyledEl('p', { fontSize: '10px', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.1em' }, 'Points totaux'));
+  totalCard.appendChild(createStyledEl('p', { fontSize: '10px', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.1em' }, 'Actions totales'));
   container.appendChild(totalCard);
 
-  // Watermark
   container.appendChild(createStyledEl('p', { fontSize: '8px', textAlign: 'center', color: 'hsl(var(--muted-foreground))', opacity: '0.5' }, 'My Volley · Capbreton'));
-
   return container;
 }
 
-function computeStats(pts: Point[]) {
-  const byTeam = (team: 'blue' | 'red') => {
+interface TeamStats {
+  scored: number;
+  faults: number;
+  // Volleyball
+  attacks: number; aces: number; blocks: number; bidouilles: number; secondeMains: number; otherOffensive: number;
+  outs: number; netFaults: number; serviceMisses: number; blockOuts: number;
+  // Basketball
+  scoredPoints: number; freeThrows: number; twoPoints: number; threePoints: number;
+  missedShots: number; turnovers: number; foulsCommitted: number;
+}
+
+function computeStats(pts: Point[], sport: SportType = 'volleyball'): { blue: TeamStats; red: TeamStats; total: number; sport: SportType } {
+  const byTeam = (team: 'blue' | 'red'): TeamStats => {
     const opponent = team === 'blue' ? 'red' : 'blue';
     const scored = pts.filter(p => p.team === team && p.type === 'scored');
-    // Faults committed BY this team = points scored by opponent via fault
-    const faults = pts.filter(p => p.team === opponent && p.type === 'fault');
+    const opponentFaults = pts.filter(p => p.team === opponent && p.type === 'fault');
+    const teamFaults = pts.filter(p => p.team === team && p.type === 'fault');
     return {
-      scored: scored.length,
-      faults: faults.length,
-      // Offensive breakdown
+      scored: sport === 'basketball' ? scored.reduce((s, p) => s + (p.pointValue ?? 0), 0) : scored.length,
+      faults: sport === 'basketball' ? teamFaults.length : opponentFaults.length,
+      // Volleyball
       attacks: scored.filter(p => p.action === 'attack').length,
       aces: scored.filter(p => p.action === 'ace').length,
       blocks: scored.filter(p => p.action === 'block').length,
       bidouilles: scored.filter(p => p.action === 'bidouille').length,
       secondeMains: scored.filter(p => p.action === 'seconde_main').length,
       otherOffensive: scored.filter(p => p.action === 'other_offensive').length,
-      // Fault breakdown
-      outs: faults.filter(p => p.action === 'out').length,
-      netFaults: faults.filter(p => p.action === 'net_fault').length,
-      serviceMisses: faults.filter(p => p.action === 'service_miss').length,
-      blockOuts: faults.filter(p => p.action === 'block_out').length,
+      outs: opponentFaults.filter(p => p.action === 'out').length,
+      netFaults: opponentFaults.filter(p => p.action === 'net_fault').length,
+      serviceMisses: opponentFaults.filter(p => p.action === 'service_miss').length,
+      blockOuts: opponentFaults.filter(p => p.action === 'block_out').length,
+      // Basketball
+      scoredPoints: scored.reduce((s, p) => s + (p.pointValue ?? 0), 0),
+      freeThrows: scored.filter(p => p.action === 'free_throw').length,
+      twoPoints: scored.filter(p => p.action === 'two_points').length,
+      threePoints: scored.filter(p => p.action === 'three_points').length,
+      missedShots: teamFaults.filter(p => p.action === 'missed_shot').length,
+      turnovers: teamFaults.filter(p => p.action === 'turnover').length,
+      foulsCommitted: teamFaults.filter(p => p.action === 'foul_committed').length,
     };
   };
-  return { blue: byTeam('blue'), red: byTeam('red'), total: pts.length };
+  return { blue: byTeam('blue'), red: byTeam('red'), total: pts.length, sport };
 }
 
-export function HeatmapView({ points, completedSets, currentSetPoints, currentSetNumber, stats, teamNames, players = [] }: HeatmapViewProps) {
+export function HeatmapView({ points, completedSets, currentSetPoints, currentSetNumber, stats, teamNames, players = [], sport = 'volleyball' }: HeatmapViewProps) {
+  const isBasketball = sport === 'basketball';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [setFilter_, setSetFilter] = useState<SetFilter>('all');
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -158,8 +176,8 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
       }
 
       for (const exp of exports) {
-        const ds = computeStats(exp.pts);
-        const container = buildExportContainer(teamNames, exp.label, ds);
+        const ds = computeStats(exp.pts, sport);
+        const container = buildExportContainer(teamNames, exp.label, ds, sport);
         document.body.appendChild(container);
         const canvas = await html2canvas(container, { backgroundColor: '#1a1a2e', scale: 2 });
         document.body.removeChild(container);
@@ -326,14 +344,15 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
     return [];
   }, [points, completedSets, currentSetPoints, currentSetNumber, setFilter_]);
 
-  // Heatmap only shows offensive actions (points gagnés)
+  // Heatmap: for basketball show scored shots, for volleyball show offensive actions
   const heatmapPoints = useMemo(() => {
+    if (isBasketball) return filteredPoints.filter(p => p.type === 'scored');
     return filteredPoints.filter(p => p.type === 'scored' && isOffensiveAction(p.action));
-  }, [filteredPoints]);
+  }, [filteredPoints, isBasketball]);
 
   const displayStats = useMemo(() => {
-    return computeStats(filteredPoints);
-  }, [filteredPoints]);
+    return computeStats(filteredPoints, sport);
+  }, [filteredPoints, sport]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -401,7 +420,7 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
         {/* Header */}
         <div className="text-center space-y-1">
           <p className="text-base font-black text-foreground">
-            🏐 {teamNames.blue} vs {teamNames.red}
+            {isBasketball ? '🏀' : '🏐'} {teamNames.blue} vs {teamNames.red}
           </p>
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Statistiques du match</p>
         </div>
@@ -431,38 +450,72 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
               </p>
               <div className="space-y-0.5 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground font-semibold text-xs">⚡ Gagnés</span>
+                  <span className="text-muted-foreground font-semibold text-xs">{isBasketball ? '🏀 Points' : '⚡ Gagnés'}</span>
                   <span className="font-bold text-foreground text-xs">{ds[team].scored}</span>
                 </div>
-                {[
-                  ['Attaques', ds[team].attacks],
-                  ['Aces', ds[team].aces],
-                  ['Blocks', ds[team].blocks],
-                  ['Bidouilles', ds[team].bidouilles],
-                  ['2ndes mains', ds[team].secondeMains],
-                  ['Autres', ds[team].otherOffensive],
-                ].map(([label, val]) => (
-                  <div key={label as string} className="flex justify-between pl-2">
-                    <span className="text-muted-foreground text-[11px]">{label}</span>
-                    <span className="font-bold text-foreground text-[11px]">{val as number}</span>
-                  </div>
-                ))}
+                {isBasketball ? (
+                  <>
+                    {[
+                      ['Lancers francs (1pt)', ds[team].freeThrows],
+                      ['Intérieur (2pts)', ds[team].twoPoints],
+                      ['Extérieur (3pts)', ds[team].threePoints],
+                    ].map(([label, val]) => (
+                      <div key={label as string} className="flex justify-between pl-2">
+                        <span className="text-muted-foreground text-[11px]">{label}</span>
+                        <span className="font-bold text-foreground text-[11px]">{val as number}</span>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {[
+                      ['Attaques', ds[team].attacks],
+                      ['Aces', ds[team].aces],
+                      ['Blocks', ds[team].blocks],
+                      ['Bidouilles', ds[team].bidouilles],
+                      ['2ndes mains', ds[team].secondeMains],
+                      ['Autres', ds[team].otherOffensive],
+                    ].map(([label, val]) => (
+                      <div key={label as string} className="flex justify-between pl-2">
+                        <span className="text-muted-foreground text-[11px]">{label}</span>
+                        <span className="font-bold text-foreground text-[11px]">{val as number}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
 
                 <div className="flex justify-between border-t border-border pt-1 mt-1">
-                  <span className="text-muted-foreground font-semibold text-xs">❌ Fautes commises</span>
+                  <span className="text-muted-foreground font-semibold text-xs">{isBasketball ? '❌ Actions négatives' : '❌ Fautes commises'}</span>
                   <span className="font-bold text-destructive text-xs">{ds[team].faults}</span>
                 </div>
-                {[
-                  ['Out', ds[team].outs],
-                  ['Filet', ds[team].netFaults],
-                  ['Srv loupés', ds[team].serviceMisses],
-                  ['Block Out', ds[team].blockOuts],
-                ].map(([label, val]) => (
-                  <div key={label as string} className="flex justify-between pl-2">
-                    <span className="text-muted-foreground text-[11px]">{label}</span>
-                    <span className="font-bold text-foreground text-[11px]">{val as number}</span>
-                  </div>
-                ))}
+                {isBasketball ? (
+                  <>
+                    {[
+                      ['Tirs manqués', ds[team].missedShots],
+                      ['Pertes de balle', ds[team].turnovers],
+                      ['Fautes commises', ds[team].foulsCommitted],
+                    ].map(([label, val]) => (
+                      <div key={label as string} className="flex justify-between pl-2">
+                        <span className="text-muted-foreground text-[11px]">{label}</span>
+                        <span className="font-bold text-foreground text-[11px]">{val as number}</span>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {[
+                      ['Out', ds[team].outs],
+                      ['Filet', ds[team].netFaults],
+                      ['Srv loupés', ds[team].serviceMisses],
+                      ['Block Out', ds[team].blockOuts],
+                    ].map(([label, val]) => (
+                      <div key={label as string} className="flex justify-between pl-2">
+                        <span className="text-muted-foreground text-[11px]">{label}</span>
+                        <span className="font-bold text-foreground text-[11px]">{val as number}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
 
                 <div className="flex justify-between border-t border-border pt-1 mt-1">
                   <span className="text-muted-foreground text-xs">Total</span>
@@ -503,7 +556,7 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
           <p className="text-[10px] text-center text-muted-foreground">
             Terrain — {setOptions.find(o => o.key === setFilter_)?.label}
           </p>
-          <CourtDisplay points={filteredPoints} teamNames={teamNames} />
+          <CourtDisplay points={filteredPoints} teamNames={teamNames} sport={sport} />
         </div>
       )}
 
@@ -561,7 +614,7 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => exportMatchToExcel(completedSets, currentSetPoints, currentSetNumber, teamNames, players)} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => exportMatchToExcel(completedSets, currentSetPoints, currentSetNumber, teamNames, players, sport)} className="cursor-pointer">
               <FileSpreadsheet size={14} className="mr-2" />
               Excel (.xlsx)
             </DropdownMenuItem>
