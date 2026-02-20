@@ -157,47 +157,36 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
   const [showCourt, setShowCourt] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  const filteredPoints = useMemo(() => {
+    if (setFilter_ === 'all') return points;
+    const set = completedSets.find(s => s.number === setFilter_);
+    if (set) return set.points;
+    if (setFilter_ === currentSetNumber) return currentSetPoints;
+    return [];
+  }, [points, completedSets, currentSetPoints, currentSetNumber, setFilter_]);
+
   const handleExport = useCallback(async () => {
     setExporting(true);
     try {
-      // Build list of exports: all sets + each individual set
-      const exports: { label: string; filename: string; pts: Point[] }[] = [
-        { label: 'Tous les sets', filename: `stats-${teamNames.blue}-vs-${teamNames.red}-global`, pts: points },
-      ];
-      completedSets.forEach(s => {
-        exports.push({
-          label: `Set ${s.number}`,
-          filename: `stats-${teamNames.blue}-vs-${teamNames.red}-set${s.number}`,
-          pts: s.points,
-        });
-      });
-      if (currentSetPoints.length > 0) {
-        exports.push({
-          label: `Set ${currentSetNumber} (en cours)`,
-          filename: `stats-${teamNames.blue}-vs-${teamNames.red}-set${currentSetNumber}`,
-          pts: currentSetPoints,
-        });
-      }
-
-      for (const exp of exports) {
-        const ds = computeStats(exp.pts, sport);
-        const container = buildExportContainer(teamNames, exp.label, ds, sport);
-        document.body.appendChild(container);
-        const canvas = await html2canvas(container, { backgroundColor: '#1a1a2e', scale: 2 });
-        document.body.removeChild(container);
-        const link = document.createElement('a');
-        link.download = `${exp.filename}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        // Small delay between downloads
-        await new Promise(r => setTimeout(r, 300));
-      }
+      const label = setFilter_ === 'all'
+        ? 'Tous les sets'
+        : `Set ${setFilter_}${setFilter_ === currentSetNumber && !completedSets.some(s => s.number === setFilter_) ? ' (en cours)' : ''}`;
+      const filename = `stats-${teamNames.blue}-vs-${teamNames.red}-${setFilter_ === 'all' ? 'global' : `set${setFilter_}`}`;
+      const ds = computeStats(filteredPoints, sport);
+      const container = buildExportContainer(teamNames, label, ds, sport);
+      document.body.appendChild(container);
+      const canvas = await html2canvas(container, { backgroundColor: '#1a1a2e', scale: 2 });
+      document.body.removeChild(container);
+      const link = document.createElement('a');
+      link.download = `${filename}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     } catch (err) {
       console.error('Export failed:', err);
     } finally {
       setExporting(false);
     }
-  }, [teamNames, points, completedSets, currentSetPoints, currentSetNumber]);
+  }, [teamNames, filteredPoints, setFilter_, currentSetNumber, completedSets, sport]);
 
   const exportCourtPng = useCallback(async (pts: Point[], label: string) => {
     const ACTION_SHORT: Record<string, string> = {
@@ -357,14 +346,6 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
     }
   }, [matchId, isLoggedIn]);
 
-  const filteredPoints = useMemo(() => {
-    if (setFilter_ === 'all') return points;
-    // Check completed sets first (avoids returning empty currentSetPoints for a finished set)
-    const set = completedSets.find(s => s.number === setFilter_);
-    if (set) return set.points;
-    if (setFilter_ === currentSetNumber) return currentSetPoints;
-    return [];
-  }, [points, completedSets, currentSetPoints, currentSetNumber, setFilter_]);
 
   // Heatmap: only scored points, normalized so blue always RIGHT, red always LEFT
   const heatmapPoints = useMemo(() => {
@@ -630,18 +611,12 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
             <DropdownMenuLabel className="text-xs text-muted-foreground">Images PNG</DropdownMenuLabel>
             <DropdownMenuItem onClick={handleExport} disabled={exporting} className="cursor-pointer">
               <Image size={14} className="mr-2" />
-              {exporting ? 'Export en cours...' : 'Exporter stats (PNG)'}
+              {exporting ? 'Export en cours...' : `Exporter stats${setFilter_ !== 'all' ? ` — Set ${setFilter_}` : ''} (PNG)`}
             </DropdownMenuItem>
-            {completedSets.map(s => (
-              <DropdownMenuItem key={`court-${s.number}`} onClick={() => exportCourtPng(s.points, `Set ${s.number}`)} className="cursor-pointer">
+            {setFilter_ !== 'all' && (
+              <DropdownMenuItem onClick={() => exportCourtPng(filteredPoints, `Set ${setFilter_}${setFilter_ === currentSetNumber && !completedSets.some(s => s.number === setFilter_) ? ' (en cours)' : ''}`)} className="cursor-pointer">
                 <Map size={14} className="mr-2" />
-                Terrain Set {s.number} (PNG)
-              </DropdownMenuItem>
-            ))}
-            {currentSetPoints.length > 0 && (
-              <DropdownMenuItem onClick={() => exportCourtPng(currentSetPoints, `Set ${currentSetNumber} (en cours)`)} className="cursor-pointer">
-                <Map size={14} className="mr-2" />
-                Terrain Set {currentSetNumber} en cours (PNG)
+                Terrain Set {setFilter_} (PNG)
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
