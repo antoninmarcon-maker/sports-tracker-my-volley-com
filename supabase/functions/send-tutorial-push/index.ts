@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     }, { extractable: false });
 
     const appServer = await webpush.ApplicationServer.new({
-      contactInformation: "mailto:contact@my-volley.com",
+      contactInformation: "mailto:antonin.marcon@gmail.com",
       vapidKeys,
     });
 
