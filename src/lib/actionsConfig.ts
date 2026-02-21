@@ -7,6 +7,7 @@ export interface CustomAction {
   label: string;
   sport: SportType;
   category: PointType; // 'scored' or 'fault'
+  points?: number; // For basketball scored actions: 1, 2 or 3
 }
 
 export interface ActionsConfig {
@@ -59,22 +60,28 @@ export function toggleActionVisibility(actionKey: string): ActionsConfig {
   return config;
 }
 
-export function addCustomAction(label: string, sport: SportType, category: PointType): ActionsConfig {
+export function addCustomAction(label: string, sport: SportType, category: PointType, points?: number): ActionsConfig {
   const config = getConfig();
   config.customActions.push({
     id: crypto.randomUUID(),
     label: label.trim(),
     sport,
     category,
+    ...(points != null && { points }),
   });
   saveConfig(config);
   return config;
 }
 
-export function updateCustomAction(id: string, newLabel: string): ActionsConfig {
+export function updateCustomAction(id: string, newLabel: string, points?: number): ActionsConfig {
   const config = getConfig();
   const action = config.customActions.find(a => a.id === id);
-  if (action) action.label = newLabel.trim();
+  if (action) {
+    action.label = newLabel.trim();
+    if (action.sport === 'basketball' && action.category === 'scored') {
+      action.points = points;
+    }
+  }
   saveConfig(config);
   return config;
 }
@@ -110,6 +117,7 @@ export function getVisibleActions(
       key: getCustomActionRealKey(c),
       label: c.label,
       customId: c.id,
+      ...(c.points != null && { points: c.points }),
     }));
 
   return [...visible, ...customs];
