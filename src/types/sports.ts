@@ -4,19 +4,19 @@ export type SportType = 'volleyball' | 'basketball' | 'tennis' | 'padel';
 
 // ---- VOLLEYBALL ----
 export type OffensiveAction = 'attack' | 'ace' | 'block' | 'bidouille' | 'seconde_main' | 'other_offensive';
-export type FaultAction = 'out' | 'net_fault' | 'service_miss' | 'block_out';
+export type FaultAction = 'out' | 'net_fault' | 'service_miss' | 'block_out' | 'other_volley_fault';
 
 // ---- BASKETBALL ----
 export type BasketScoredAction = 'free_throw' | 'two_points' | 'three_points';
-export type BasketFaultAction = 'missed_shot' | 'turnover' | 'foul_committed';
+export type BasketFaultAction = 'missed_shot' | 'turnover' | 'foul_committed' | 'other_basket_fault';
 
 // ---- TENNIS ----
 export type TennisScoredAction = 'winner_forehand' | 'winner_backhand' | 'tennis_ace' | 'volley_winner' | 'smash' | 'drop_shot_winner' | 'other_tennis_winner';
-export type TennisFaultAction = 'double_fault' | 'unforced_error_forehand' | 'unforced_error_backhand' | 'net_error' | 'out_long' | 'out_wide';
+export type TennisFaultAction = 'double_fault' | 'unforced_error_forehand' | 'unforced_error_backhand' | 'net_error' | 'out_long' | 'out_wide' | 'other_tennis_fault';
 
 // ---- PADEL ----
 export type PadelScoredAction = 'padel_ace' | 'vibora' | 'bandeja' | 'smash_padel' | 'volee' | 'bajada' | 'chiquita_winner' | 'par_3' | 'other_padel_winner';
-export type PadelFaultAction = 'padel_double_fault' | 'padel_unforced_error' | 'padel_net_error' | 'padel_out' | 'grille_error' | 'vitre_error';
+export type PadelFaultAction = 'padel_double_fault' | 'padel_unforced_error' | 'padel_net_error' | 'padel_out' | 'grille_error' | 'vitre_error' | 'other_padel_fault';
 
 export type ActionType =
   | OffensiveAction | FaultAction
@@ -40,6 +40,7 @@ export const FAULT_ACTIONS: { key: FaultAction; label: string }[] = [
   { key: 'net_fault', label: 'Filet' },
   { key: 'service_miss', label: 'Service loupé' },
   { key: 'block_out', label: 'Block Out' },
+  { key: 'other_volley_fault', label: 'Autre' },
 ];
 
 export const BASKET_SCORED_ACTIONS: { key: BasketScoredAction; label: string; points: number }[] = [
@@ -52,6 +53,7 @@ export const BASKET_FAULT_ACTIONS: { key: BasketFaultAction; label: string }[] =
   { key: 'missed_shot', label: 'Tir manqué' },
   { key: 'turnover', label: 'Perte de balle' },
   { key: 'foul_committed', label: 'Faute commise' },
+  { key: 'other_basket_fault', label: 'Autre' },
 ];
 
 export const TENNIS_SCORED_ACTIONS: { key: TennisScoredAction; label: string }[] = [
@@ -71,6 +73,7 @@ export const TENNIS_FAULT_ACTIONS: { key: TennisFaultAction; label: string }[] =
   { key: 'net_error', label: 'Filet' },
   { key: 'out_long', label: 'Out long' },
   { key: 'out_wide', label: 'Out latéral' },
+  { key: 'other_tennis_fault', label: 'Autre faute' },
 ];
 
 export const PADEL_SCORED_ACTIONS: { key: PadelScoredAction; label: string }[] = [
@@ -92,7 +95,16 @@ export const PADEL_FAULT_ACTIONS: { key: PadelFaultAction; label: string }[] = [
   { key: 'padel_out', label: 'Out' },
   { key: 'grille_error', label: 'Grille' },
   { key: 'vitre_error', label: 'Vitre' },
+  { key: 'other_padel_fault', label: 'Autre faute' },
 ];
+
+// ---- "Other" action keys per sport (used for custom action mapping) ----
+export const OTHER_ACTION_KEYS: Record<SportType, { scored: ActionType; fault: ActionType }> = {
+  volleyball: { scored: 'other_offensive', fault: 'other_volley_fault' },
+  basketball: { scored: 'three_points', fault: 'other_basket_fault' }, // basketball scored has no generic "other"
+  tennis: { scored: 'other_tennis_winner', fault: 'other_tennis_fault' },
+  padel: { scored: 'other_padel_winner', fault: 'other_padel_fault' },
+};
 
 // ---- Helper functions ----
 
@@ -207,6 +219,7 @@ export interface Point {
   timestamp: number;
   playerId?: string;
   pointValue?: number; // For basketball: 1, 2 or 3
+  customActionLabel?: string; // For custom actions mapped to "other"
 }
 
 export interface SetData {
