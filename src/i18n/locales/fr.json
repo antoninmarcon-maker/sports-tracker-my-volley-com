@@ -210,6 +210,7 @@
     "myAccount": "Mon compte",
     "leaveFeedback": "Laisser un feedback",
     "savedPlayers": "Joueurs enregistrés",
+    "customActions": "Actions personnalisées",
     "accountSettings": "Paramètres du compte",
     "signOut": "Se déconnecter",
     "feedbackTitle": "💬 Laisser un feedback",
@@ -426,12 +427,14 @@
     "net_fault": "Filet",
     "service_miss": "Service loupé",
     "block_out": "Block Out",
+    "other_volley_fault": "Autre faute",
     "free_throw": "Lancer franc (1pt)",
     "two_points": "Intérieur (2pts)",
     "three_points": "Extérieur (3pts)",
     "missed_shot": "Tir manqué",
     "turnover": "Perte de balle",
     "foul_committed": "Faute commise",
+    "other_basket_fault": "Autre faute",
     "tennis_ace": "Ace",
     "winner_forehand": "Coup droit gagnant",
     "winner_backhand": "Revers gagnant",
@@ -445,6 +448,7 @@
     "net_error": "Filet",
     "out_long": "Out long",
     "out_wide": "Out latéral",
+    "other_tennis_fault": "Autre faute",
     "vibora": "Víbora",
     "bandeja": "Bandeja",
     "smash_padel": "Smash",
@@ -458,6 +462,21 @@
     "padel_net_error": "Filet",
     "padel_out": "Out",
     "grille_error": "Grille",
-    "vitre_error": "Vitre"
+    "vitre_error": "Vitre",
+    "other_padel_fault": "Autre faute"
+  },
+  "actionsConfig": {
+    "title": "Actions personnalisées",
+    "description": "Masquez les actions par défaut ou créez vos propres actions. Les actions personnalisées sont enregistrées sous la catégorie « Autre » pour préserver la compatibilité.",
+    "scored": "⚡ Points gagnés",
+    "faults": "❌ Fautes",
+    "addAction": "Ajouter",
+    "newActionPlaceholder": "Nom de l'action",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "volleyball": "Volley",
+    "basketball": "Basket",
+    "tennis": "Tennis",
+    "padel": "Padel"
   }
 }

@@ -96,6 +96,9 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     const pointValue = sport === 'basketball' && isBasketScoredAction(selectedAction)
       ? getBasketPointValue(selectedAction)
       : undefined;
+    // Read and clear pending custom action label
+    const customLabel = (window as any).__pendingCustomActionLabel;
+    if (customLabel) delete (window as any).__pendingCustomActionLabel;
     const point: Point = {
       id: crypto.randomUUID(),
       team: selectedTeam,
@@ -105,6 +108,7 @@ export function useMatchState(matchId: string, ready: boolean = true) {
       y,
       timestamp: Date.now(),
       pointValue,
+      ...(customLabel ? { customActionLabel: customLabel } : {}),
     };
     // Show player selector for blue team actions + red team fault points (blue committed the fault)
     if (players.length > 0 && (point.team === 'blue' || (point.team === 'red' && point.type === 'fault'))) {

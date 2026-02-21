@@ -1,11 +1,13 @@
 import { Undo2, RotateCcw, Flag, ArrowLeftRight, Play, Pause, Timer, Pencil, Plus, X, ChevronDown } from 'lucide-react';
 import { Team, PointType, ActionType, SportType, Point, MatchMetadata, getScoredActionsForSport, getFaultActionsForSport, getPeriodLabel } from '@/types/sports';
+import { getVisibleActions } from '@/lib/actionsConfig';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useTennisScore } from '@/hooks/useTennisScore';
 import { useTranslation } from 'react-i18next';
 
 interface ScoreBoardProps {
+  onCustomActionLabel?: (label: string) => void;
   score: { blue: number; red: number };
   points: Point[];
   selectedTeam: Team | null;
@@ -75,11 +77,14 @@ export function ScoreBoard({
     setEditingNames(false);
   };
 
-  const handleActionSelect = (action: ActionType) => {
+  const handleActionSelect = (action: ActionType, customLabel?: string) => {
     if (!menuTeam) return;
     const type: PointType = menuTab === 'scored' ? 'scored' : 'fault';
     // menuTeam is the Winner of the point (we clicked + on their side)
     onSelectAction(menuTeam, type, action);
+    if (customLabel) {
+      (window as any).__pendingCustomActionLabel = customLabel;
+    }
     setMenuTeam(null);
   };
 
@@ -97,37 +102,25 @@ export function ScoreBoard({
   const SERVICE_FAULT_ACTIONS: ActionType[] = ['service_miss', 'double_fault', 'padel_double_fault'];
 
   const getScoredActions = () => {
-    const actions = getScoredActionsForSport(sport);
-    if (!servingTeam || !menuTeam) return actions;
-    // Hide service-related scored actions (aces) when this team is NOT serving
-    return actions.filter(a => {
-      if (SERVICE_SCORED_ACTIONS.includes(a.key) && servingTeam !== menuTeam) return false;
+    const defaults = getScoredActionsForSport(sport);
+    const visible = getVisibleActions(sport, 'scored', defaults);
+    if (!servingTeam || !menuTeam) return visible;
+    return visible.filter(a => {
+      if (SERVICE_SCORED_ACTIONS.includes(a.key as ActionType) && servingTeam !== menuTeam) return false;
       return true;
     });
   };
 
   const getFilteredFaultActions = () => {
-    const actions = getFaultActionsForSport(sport);
-    if (!servingTeam || !menuTeam) return actions;
+    const defaults = getFaultActionsForSport(sport);
+    const visible = getVisibleActions(sport, 'fault', defaults);
+    if (!servingTeam || !menuTeam) return visible;
 
-    // Logic: menuTeam is the one getting the point.
-    // So the fault is committed by the OPPONENT.
     const opponent = menuTeam === 'blue' ? 'red' : 'blue';
     const faultingTeam = opponent;
 
-    // Filter based on who is committing the fault (faultingTeam)
-    return actions.filter(a => {
-      // Hide service faults if the faulting team is NOT the serving team
-      if (SERVICE_FAULT_ACTIONS.includes(a.key) && faultingTeam !== servingTeam) return false;
-      
-      // Volleyball specific: service_miss is an opponent fault. 
-      // If faultingTeam is serving, they can do a service_miss.
-      // Wait, 'service_miss' in volleyball IS a fault by the server.
-      // So if faultingTeam === servingTeam, show it.
-      // My previous logic was: if (a.key === 'service_miss' && sport === 'volleyball' && servingTeam === menuTeam) return false;
-      // Here faultingTeam is the one doing the action.
-      // If faultingTeam is serving, they can miss service.
-      
+    return visible.filter(a => {
+      if (SERVICE_FAULT_ACTIONS.includes(a.key as ActionType) && faultingTeam !== servingTeam) return false;
       return true;
     });
   };
@@ -411,15 +404,15 @@ export function ScoreBoard({
           <div className="grid grid-cols-3 gap-1.5">
             {(menuTab === 'scored' ? getScoredActions() : getFilteredFaultActions()).map(a => (
               <button
-                key={a.key}
-                onClick={() => handleActionSelect(a.key)}
+                key={a.customId ?? a.key}
+                onClick={() => handleActionSelect(a.key as ActionType, a.customId ? a.label : undefined)}
                 className={`py-2.5 px-2 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
                   menuTab === 'scored'
                     ? 'bg-action-scored/10 text-action-scored hover:bg-action-scored/20 border border-action-scored/20'
                     : 'bg-action-fault/10 text-action-fault hover:bg-action-fault/20 border border-action-fault/20'
                 }`}
               >
-                {a.label}
+                {a.customId ? a.label : t(`actions.${a.key}`, a.label)}
               </button>
             ))}
           </div>
@@ -431,7 +424,7 @@ export function ScoreBoard({
         <div className="flex items-center justify-between bg-accent/50 rounded-lg p-2.5 border border-accent">
           <p className="text-sm text-foreground">
             <span className="font-bold">{teamNames[selectedTeam]}</span> — {
-              allActions.find(a => a.key === selectedAction)?.label
+              (window as any).__pendingCustomActionLabel || t(`actions.${selectedAction}`, allActions.find(a => a.key === selectedAction)?.label ?? selectedAction)
             }
           </p>
           <div className="flex items-center gap-2">
