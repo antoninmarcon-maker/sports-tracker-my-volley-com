@@ -471,7 +471,7 @@
     "description": "Hide default actions or create your own. Custom actions are stored under the \"Other\" category for compatibility.",
     "scored": "⚡ Points won",
     "faults": "❌ Faults",
-    "neutral": "📊 Neutral",
+    "neutral": "📊 Match Events",
     "addAction": "Add",
     "newActionPlaceholder": "Action name",
     "sigilPlaceholder": "Sigil",
