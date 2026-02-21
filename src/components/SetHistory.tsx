@@ -1,4 +1,4 @@
-import { SetData, SportType } from '@/types/sports';
+import { SetData, SportType, getScoredActionsForSport, getFaultActionsForSport } from '@/types/sports';
 import { ChevronDown, ChevronUp, Trophy, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -81,11 +81,41 @@ export function SetHistory({ completedSets, currentSetNumber, setsScore, teamNam
                   <p className="text-team-blue font-semibold mb-1">{teamNames.blue}</p>
                   <p className="text-muted-foreground">{t('setHistory.scored')}: {set.points.filter(p => p.team === 'blue' && p.type === 'scored').length}</p>
                   <p className="text-muted-foreground">{t('setHistory.faults')}: {set.points.filter(p => p.team === 'blue' && p.type === 'fault').length}</p>
+                  {(() => {
+                    const bluePoints = set.points.filter(p => p.team === 'blue');
+                    const allActions = [...getScoredActionsForSport(sport), ...getFaultActionsForSport(sport)];
+                    const actionCounts = allActions
+                      .map(a => ({ label: a.label, count: bluePoints.filter(p => p.action === a.key).length }))
+                      .filter(a => a.count > 0);
+                    if (actionCounts.length === 0) return null;
+                    return (
+                      <div className="mt-1.5 space-y-0.5">
+                        {actionCounts.map(a => (
+                          <p key={a.label} className="text-muted-foreground/70 pl-2 border-l border-border">{a.label}: {a.count}</p>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div>
                   <p className="text-team-red font-semibold mb-1">{teamNames.red}</p>
                   <p className="text-muted-foreground">{t('setHistory.scored')}: {set.points.filter(p => p.team === 'red' && p.type === 'scored').length}</p>
                   <p className="text-muted-foreground">{t('setHistory.faults')}: {set.points.filter(p => p.team === 'red' && p.type === 'fault').length}</p>
+                  {(() => {
+                    const redPoints = set.points.filter(p => p.team === 'red');
+                    const allActions = [...getScoredActionsForSport(sport), ...getFaultActionsForSport(sport)];
+                    const actionCounts = allActions
+                      .map(a => ({ label: a.label, count: redPoints.filter(p => p.action === a.key).length }))
+                      .filter(a => a.count > 0);
+                    if (actionCounts.length === 0) return null;
+                    return (
+                      <div className="mt-1.5 space-y-0.5">
+                        {actionCounts.map(a => (
+                          <p key={a.label} className="text-muted-foreground/70 pl-2 border-l border-border">{a.label}: {a.count}</p>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

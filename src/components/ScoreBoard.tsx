@@ -91,28 +91,31 @@ export function ScoreBoard({
     setMenuTeam(null);
   };
 
+  // Actions that can only be performed by the serving team
+  const SERVICE_SCORED_ACTIONS: ActionType[] = ['ace', 'tennis_ace', 'padel_ace'];
+  const SERVICE_FAULT_ACTIONS: ActionType[] = ['service_miss', 'double_fault', 'padel_double_fault'];
+
   const getScoredActions = () => {
     const actions = getScoredActionsForSport(sport);
-    if (sport === 'volleyball') {
-      return actions.filter(a => {
-        if (!servingTeam || !menuTeam) return true;
-        if (a.key === 'ace' && servingTeam !== menuTeam) return false;
-        return true;
-      });
-    }
-    return actions;
+    if (!servingTeam || !menuTeam) return actions;
+    // Hide service-related scored actions (aces) when this team is NOT serving
+    return actions.filter(a => {
+      if (SERVICE_SCORED_ACTIONS.includes(a.key) && servingTeam !== menuTeam) return false;
+      return true;
+    });
   };
 
   const getFilteredFaultActions = () => {
     const actions = getFaultActionsForSport(sport);
-    if (sport === 'volleyball') {
-      return actions.filter(a => {
-        if (!servingTeam || !menuTeam) return true;
-        if (a.key === 'service_miss' && servingTeam === menuTeam) return false;
-        return true;
-      });
-    }
-    return actions;
+    if (!servingTeam || !menuTeam) return actions;
+    // For volleyball: hide service_miss for non-receiving team (existing logic inverted)
+    // For all sports: hide service faults (double_fault, etc.) when this team is NOT serving
+    return actions.filter(a => {
+      if (SERVICE_FAULT_ACTIONS.includes(a.key) && servingTeam !== menuTeam) return false;
+      // Volleyball: service_miss is an opponent fault, hide from serving team
+      if (a.key === 'service_miss' && sport === 'volleyball' && servingTeam === menuTeam) return false;
+      return true;
+    });
   };
 
   const allActions = [...getScoredActionsForSport(sport), ...getFaultActionsForSport(sport)];
