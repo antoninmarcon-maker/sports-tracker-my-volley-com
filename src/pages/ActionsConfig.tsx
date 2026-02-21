@@ -33,25 +33,28 @@ export default function ActionsConfig() {
   const [sport, setSport] = useState<SportType>('volleyball');
   const [addingCategory, setAddingCategory] = useState<PointType | null>(null);
   const [newLabel, setNewLabel] = useState('');
+  const [newPoints, setNewPoints] = useState<number>(2);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
-
+  const [editPoints, setEditPoints] = useState<number>(2);
   const handleToggle = useCallback((key: string) => {
     setConfig(toggleActionVisibility(key));
   }, []);
 
   const handleAdd = useCallback(() => {
     if (!newLabel.trim() || !addingCategory) return;
-    setConfig(addCustomAction(newLabel, sport, addingCategory));
+    const pts = (sport === 'basketball' && addingCategory === 'scored') ? newPoints : undefined;
+    setConfig(addCustomAction(newLabel, sport, addingCategory, pts));
     setNewLabel('');
+    setNewPoints(2);
     setAddingCategory(null);
-  }, [newLabel, sport, addingCategory]);
+  }, [newLabel, sport, addingCategory, newPoints]);
 
   const handleUpdate = useCallback((id: string) => {
     if (!editLabel.trim()) return;
-    setConfig(updateCustomAction(id, editLabel));
+    setConfig(updateCustomAction(id, editLabel, editPoints));
     setEditingId(null);
-  }, [editLabel]);
+  }, [editLabel, editPoints]);
 
   const handleDelete = useCallback((id: string) => {
     setConfig(deleteCustomAction(id));
@@ -114,7 +117,9 @@ export default function ActionsConfig() {
         })}
 
         {/* Custom actions */}
-        {customs.map(c => (
+        {customs.map(c => {
+          const showPts = sport === 'basketball' && category === 'scored';
+          return (
           <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5">
             {editingId === c.id ? (
               <div className="flex items-center gap-2 flex-1">
@@ -125,6 +130,15 @@ export default function ActionsConfig() {
                   onKeyDown={e => e.key === 'Enter' && handleUpdate(c.id)}
                   autoFocus
                 />
+                {showPts && (
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map(p => (
+                      <button key={p} onClick={() => setEditPoints(p)}
+                        className={`w-7 h-7 rounded-full text-xs font-bold transition-colors ${editPoints === p ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
+                      >{p}</button>
+                    ))}
+                  </div>
+                )}
                 <button onClick={() => handleUpdate(c.id)} className="p-1 text-primary">
                   <Check size={16} />
                 </button>
@@ -134,10 +148,15 @@ export default function ActionsConfig() {
               </div>
             ) : (
               <>
-                <span className="text-sm font-medium text-foreground">{c.label}</span>
+                <span className="text-sm font-medium text-foreground">
+                  {c.label}
+                  {showPts && c.points != null && (
+                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">{c.points}</span>
+                  )}
+                </span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => { setEditingId(c.id); setEditLabel(c.label); }}
+                    onClick={() => { setEditingId(c.id); setEditLabel(c.label); setEditPoints(c.points ?? 2); }}
                     className="p-1.5 rounded-md hover:bg-secondary transition-colors"
                   >
                     <Pencil size={14} className="text-muted-foreground" />
@@ -152,7 +171,8 @@ export default function ActionsConfig() {
               </>
             )}
           </div>
-        ))}
+          );
+        })}
 
         {/* Add form */}
         {addingCategory === category && (
@@ -165,6 +185,15 @@ export default function ActionsConfig() {
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
               autoFocus
             />
+            {sport === 'basketball' && category === 'scored' && (
+              <div className="flex gap-1">
+                {[1, 2, 3].map(p => (
+                  <button key={p} onClick={() => setNewPoints(p)}
+                    className={`w-7 h-7 rounded-full text-xs font-bold transition-colors ${newPoints === p ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
+                  >{p}</button>
+                ))}
+              </div>
+            )}
             <button
               onClick={handleAdd}
               disabled={!newLabel.trim()}
