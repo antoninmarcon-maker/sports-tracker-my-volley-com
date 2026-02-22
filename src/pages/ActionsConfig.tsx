@@ -159,12 +159,15 @@ export default function ActionsConfig() {
                       <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.showOnCourt')}</Label>
                     </div>
                     {editShowOnCourt && (
-                      <Input
-                        value={editSigil}
-                        onChange={e => setEditSigil(e.target.value.slice(0, 2).toUpperCase())}
-                        placeholder={t('actionsConfig.sigilPlaceholder')}
-                        className="h-8 text-sm w-20"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={editSigil}
+                          onChange={e => setEditSigil(e.target.value.slice(0, 2).toUpperCase())}
+                          placeholder={t('actionsConfig.sigilPlaceholder')}
+                          className="h-8 text-sm w-14"
+                        />
+                        <span className="text-[10px] text-muted-foreground">{t('actionsConfig.sigilHelp')}</span>
+                      </div>
                     )}
                   </>
                 )}
@@ -259,12 +262,15 @@ export default function ActionsConfig() {
                   <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.showOnCourt')}</Label>
                 </div>
                 {newShowOnCourt && (
-                  <Input
-                    value={newSigil}
-                    onChange={e => setNewSigil(e.target.value.slice(0, 2).toUpperCase())}
-                    placeholder={t('actionsConfig.sigilPlaceholder')}
-                    className="h-8 text-sm w-24"
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={newSigil}
+                      onChange={e => setNewSigil(e.target.value.slice(0, 2).toUpperCase())}
+                      placeholder={t('actionsConfig.sigilPlaceholder')}
+                      className="h-8 text-sm w-14"
+                    />
+                    <span className="text-[10px] text-muted-foreground">{t('actionsConfig.sigilHelp')}</span>
+                  </div>
                 )}
               </div>
             )}
