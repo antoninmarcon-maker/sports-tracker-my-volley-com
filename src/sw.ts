@@ -12,13 +12,13 @@ self.addEventListener('push', (event) => {
 
   try {
     const payload = event.data.json();
-    const title = payload.title || 'My Volley';
+    const title = payload.title || 'Sports Tracker';
     const options: NotificationOptions = {
       body: payload.body || '',
       icon: '/pwa-192x192.png',
       badge: '/pwa-192x192.png',
       data: payload.data || {},
-      tag: payload.tag || 'my-volley-notification',
+      tag: payload.tag || 'sports-tracker-notification',
     };
 
     event.waitUntil(
@@ -28,7 +28,7 @@ self.addEventListener('push', (event) => {
     // Fallback for plain text
     const text = event.data.text();
     event.waitUntil(
-      self.registration.showNotification('My Volley', { body: text, icon: '/pwa-192x192.png' })
+      self.registration.showNotification('Sports Tracker', { body: text, icon: '/pwa-192x192.png' })
     );
   }
 });

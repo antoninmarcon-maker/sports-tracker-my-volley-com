@@ -26,9 +26,9 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpeg,jpg,woff,woff2}"],
       },
       manifest: {
-        name: "My Volley",
-        short_name: "My Volley",
-        description: "Scouting multi-sports : volley, basket, tennis & padel",
+        name: "Sports Tracker",
+        short_name: "Sports Tracker",
+        description: "Scouting et statistiques sportives",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         display: "standalone",

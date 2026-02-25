@@ -33,7 +33,7 @@ export const InviteEmail = ({
     <Preview>Tu es invité(e) à rejoindre {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="My Volley" width="64" height="64" style={logo} />
+        <Img src={LOGO_URL} alt="Sports Tracker" width="64" height="64" style={logo} />
         <Heading style={h1}>Tu es invité(e) ! 🎉</Heading>
         <Text style={text}>
           Tu as été invité(e) à rejoindre{' '}
