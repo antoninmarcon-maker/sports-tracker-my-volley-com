@@ -35,8 +35,8 @@ export const SignupEmail = ({
     <Preview>Confirme ton email pour {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="My Volley" width="64" height="64" style={logo} />
-        <Heading style={h1}>Bienvenue sur My Volley ! 🏐</Heading>
+        <Img src={LOGO_URL} alt="Sports Tracker" width="64" height="64" style={logo} />
+        <Heading style={h1}>Bienvenue sur Sports Tracker ! 🏆</Heading>
         <Text style={text}>
           Merci de t'être inscrit sur{' '}
           <Link href={siteUrl} style={link}>

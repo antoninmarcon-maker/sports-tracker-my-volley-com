@@ -35,7 +35,7 @@ export const EmailChangeEmail = ({
     <Preview>Confirme ton changement d'email pour {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="My Volley" width="64" height="64" style={logo} />
+        <Img src={LOGO_URL} alt="Sports Tracker" width="64" height="64" style={logo} />
         <Heading style={h1}>Changement d'adresse email</Heading>
         <Text style={text}>
           Tu as demandé à changer ton adresse email sur {siteName} de{' '}

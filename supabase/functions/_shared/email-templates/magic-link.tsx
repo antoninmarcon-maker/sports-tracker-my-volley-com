@@ -30,7 +30,7 @@ export const MagicLinkEmail = ({
     <Preview>Ton lien de connexion pour {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="My Volley" width="64" height="64" style={logo} />
+        <Img src={LOGO_URL} alt="Sports Tracker" width="64" height="64" style={logo} />
         <Heading style={h1}>Ton lien de connexion</Heading>
         <Text style={text}>
           Clique sur le bouton ci-dessous pour te connecter à {siteName}. Ce lien expire bientôt.

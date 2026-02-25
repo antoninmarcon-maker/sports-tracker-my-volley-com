@@ -30,7 +30,7 @@ export const RecoveryEmail = ({
     <Preview>Réinitialise ton mot de passe {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="My Volley" width="64" height="64" style={logo} />
+        <Img src={LOGO_URL} alt="Sports Tracker" width="64" height="64" style={logo} />
         <Heading style={h1}>Mot de passe oublié ?</Heading>
         <Text style={text}>
           Pas de souci ! Clique sur le bouton ci-dessous pour choisir un nouveau mot de passe pour {siteName}.

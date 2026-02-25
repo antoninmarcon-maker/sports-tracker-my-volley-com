@@ -16,10 +16,10 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirme ton email — My Volley',
-  invite: 'Tu es invité(e) sur My Volley',
-  magiclink: 'Ton lien de connexion — My Volley',
-  recovery: 'Réinitialise ton mot de passe — My Volley',
+  signup: 'Confirme ton email — Sports Tracker',
+  invite: 'Tu es invité(e) sur Sports Tracker',
+  magiclink: 'Ton lien de connexion — Sports Tracker',
+  recovery: 'Réinitialise ton mot de passe — Sports Tracker',
   email_change: "Confirme ton changement d'email",
   reauthentication: 'Ton code de vérification',
 }

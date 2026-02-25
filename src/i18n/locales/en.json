@@ -26,7 +26,7 @@
     "volleyballCapbreton": "Volleyball Capbreton"
   },
   "home": {
-    "title": "🏆 My Volley",
+    "title": "🏆 Sports Tracker",
     "subtitle": "Volley · Basket · Tennis · Padel",
     "newMatch": "New Match",
     "createMatch": "Create a match",
@@ -86,17 +86,17 @@
     "feedback": "Feedback",
     "story": "Credits",
     "customizeLogo": "Customize logo",
-    "welcomeTitle": "Welcome to My Volley",
+    "welcomeTitle": "Welcome to Sports Tracker",
     "welcomeText": "Originally built for volleyball, the app now supports basketball, tennis and padel. Dedicated to coaches and players to improve their game with data. Feel free to leave feedback for any feature request or new sport!",
     "welcomeStart": "Get Started"
   },
   "credits": {
     "title": "Project Story",
-    "storyTitle": "The story of My Volley",
-    "storyP1": "My Volley was developed with passion by Antonin Marcon, an independent developer based in South-West France. The app was initially created for a very personal need: helping his own volleyball team analyze their matches and improve (hence the project name!).",
+    "storyTitle": "The story of Sports Tracker",
+    "storyP1": "Sports Tracker was developed with passion by Antonin Marcon, an independent developer based in South-West France. The app was initially created for a very personal need: helping his own volleyball team analyze their matches and improve.",
     "storyP2": "Today, the tool is open to all sports enthusiasts — volleyball, basketball, tennis and padel — who want to track and analyze their performance.",
     "supportTitle": "☕ Support the project",
-    "supportDesc": "My Volley is free and will remain so. If you enjoy the app, you can support its development with a small coffee!",
+    "supportDesc": "Sports Tracker is free and will remain so. If you enjoy the app, you can support its development with a small coffee!",
     "supportButton": "Buy a coffee",
     "techNote": "Developed with ❤️ in South-West France"
   },
@@ -169,14 +169,14 @@
     "logoRemoved": "Logo removed.",
     "logoTooLarge": "Image must be less than 2 MB.",
     "notifications": "Notifications",
-    "notifDesc": "Get daily tips to make the most of My Volley.",
+    "notifDesc": "Get daily tips to make the most of Sports Tracker.",
     "enableNotifications": "Enable notifications",
     "notificationsEnabled": "Notifications enabled!",
     "notificationsDenied": "Notifications have been blocked. Change permissions in your browser settings.",
     "notificationsDeniedInfo": "Notifications are blocked. Change permissions in your browser settings.",
     "notificationsError": "Unable to enable notifications.",
     "notificationsActive": "Notifications are enabled ✓",
-    "iosNotifWarning": "To enable notifications on iPhone, first add My Volley to your Home Screen (Share button ⎙ > Add to Home Screen).",
+    "iosNotifWarning": "To enable notifications on iPhone, first add Sports Tracker to your Home Screen (Share button ⎙ > Add to Home Screen).",
     "notifNotSupported": "Push notifications are not supported by your browser."
   },
   "help": {
@@ -403,7 +403,7 @@
     "matchFinished": "✅ Match finished",
     "setInProgress": "{{period}} {{number}} in progress",
     "linkCopied": "Link copied!",
-    "followScore": "Follow the score on my-volley.com"
+    "followScore": "Follow the score on sports-tracker.my-volley.com"
   },
   "resetPassword": {
     "title": "New password",

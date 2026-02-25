@@ -251,7 +251,7 @@ const Index = () => {
   const matchData = getMatch(matchId);
   const isFinished = matchData?.finished ?? false;
   const sportIcon = sport === 'basketball' ? '🏀' : sport === 'tennis' ? '🎾' : sport === 'padel' ? '🏓' : '🏐';
-  const sportTitle: Record<string, string> = { volleyball: 'My Volley', basketball: 'My Basket', tennis: 'My Tennis', padel: 'My Padel' };
+  const sportTitle: Record<string, string> = { volleyball: 'Sports Tracker', basketball: 'Sports Tracker', tennis: 'Sports Tracker', padel: 'Sports Tracker' };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -263,7 +263,7 @@ const Index = () => {
           <ArrowLeft size={18} />
         </button>
         <h1 className="text-lg font-black text-foreground tracking-tight text-center">
-          {sportIcon} {sportTitle[sport] || 'My Volley'}
+          {sportIcon} {sportTitle[sport] || 'Sports Tracker'}
         </h1>
         {tab === 'match' ? (
           <button
