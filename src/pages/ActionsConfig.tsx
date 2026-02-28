@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SportType, PointType, getScoredActionsForSport, getFaultActionsForSport, getNeutralActionsForSport } from '@/types/sports';
 import {
   getActionsConfig, toggleActionVisibility, addCustomAction,
-  updateCustomAction, deleteCustomAction,
+  updateCustomAction, deleteCustomAction, updateDefaultActionConfig,
   getAdvantageRule, setAdvantageRule as saveAdvantageRule,
 } from '@/lib/actionsConfig';
 import type { ActionsConfig as ActionsConfigType } from '@/lib/actionsConfig';
@@ -33,12 +33,20 @@ export default function ActionsConfig() {
   const [newSigil, setNewSigil] = useState('');
   const [newShowOnCourt, setNewShowOnCourt] = useState(false);
   const [newAssignToPlayer, setNewAssignToPlayer] = useState(true);
+  const [newHasDirection, setNewHasDirection] = useState(false);
+  const [newHasRating, setNewHasRating] = useState(false);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editPoints, setEditPoints] = useState<number>(2);
   const [editSigil, setEditSigil] = useState('');
   const [editShowOnCourt, setEditShowOnCourt] = useState(false);
   const [editAssignToPlayer, setEditAssignToPlayer] = useState(true);
+  const [editHasDirection, setEditHasDirection] = useState(false);
+  const [editHasRating, setEditHasRating] = useState(false);
+
+  // Default action editing
+  const [editingDefaultKey, setEditingDefaultKey] = useState<string | null>(null);
 
   const handleToggle = useCallback((key: string) => {
     setConfig(toggleActionVisibility(key));
@@ -48,22 +56,27 @@ export default function ActionsConfig() {
     if (!newLabel.trim() || !addingCategory) return;
     const pts = (sport === 'basketball' && addingCategory === 'scored') ? newPoints : undefined;
     const sigil = addingCategory === 'neutral' ? newSigil : undefined;
-    const showOnCourt = addingCategory === 'neutral' ? newShowOnCourt : undefined;
-    const assignToPlayer = addingCategory === 'neutral' ? newAssignToPlayer : undefined;
-    setConfig(addCustomAction(newLabel, sport, addingCategory, pts, sigil, showOnCourt, assignToPlayer));
+    setConfig(addCustomAction(newLabel, sport, addingCategory, pts, sigil, newShowOnCourt, newAssignToPlayer, newHasDirection, newHasRating));
     setNewLabel('');
     setNewPoints(2);
     setNewSigil('');
     setNewShowOnCourt(false);
     setNewAssignToPlayer(true);
+    setNewHasDirection(false);
+    setNewHasRating(false);
     setAddingCategory(null);
-  }, [newLabel, sport, addingCategory, newPoints, newSigil, newShowOnCourt, newAssignToPlayer]);
+  }, [newLabel, sport, addingCategory, newPoints, newSigil, newShowOnCourt, newAssignToPlayer, newHasDirection, newHasRating]);
 
   const handleUpdate = useCallback((id: string) => {
     if (!editLabel.trim()) return;
-    setConfig(updateCustomAction(id, editLabel, editPoints, editSigil || undefined, editShowOnCourt, editAssignToPlayer));
+    setConfig(updateCustomAction(id, editLabel, editPoints, editSigil || undefined, editShowOnCourt, editAssignToPlayer, editHasDirection, editHasRating));
     setEditingId(null);
-  }, [editLabel, editPoints, editSigil, editShowOnCourt, editAssignToPlayer]);
+  }, [editLabel, editPoints, editSigil, editShowOnCourt, editAssignToPlayer, editHasDirection, editHasRating]);
+
+  const handleUpdateDefault = useCallback((key: string) => {
+    setConfig(updateDefaultActionConfig(key, editAssignToPlayer, editHasDirection, editHasRating));
+    setEditingDefaultKey(null);
+  }, [editAssignToPlayer, editHasDirection, editHasRating]);
 
   const handleDelete = useCallback((id: string) => {
     setConfig(deleteCustomAction(id));
@@ -104,30 +117,89 @@ export default function ActionsConfig() {
         {/* Default actions */}
         {defaultActions.map(a => {
           const isHidden = config.hiddenActions.includes(a.key);
+          const overrides = config.defaultActionsConfig?.[a.key] || {};
+          const isEditing = editingDefaultKey === a.key;
+          const currentAssign = overrides.assignToPlayer ?? true;
+          const currentDirection = overrides.hasDirection ?? false;
+          const currentRating = overrides.hasRating ?? a.hasRating ?? false;
+
           return (
             <div
               key={a.key}
-              className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                isHidden ? 'border-border/50 bg-muted/30 opacity-60' : 'border-border bg-card'
-              }`}
+              className={`flex flex-col p-3 rounded-lg border transition-all ${isHidden ? 'border-border/50 bg-muted/30 opacity-60' : 'border-border bg-card'
+                }`}
             >
-              <span className="text-sm font-medium text-foreground">
-                {t(`actions.${a.key}`, a.label)}
-                {'points' in a && a.points != null && (
-                  <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">{a.points as number}</span>
-                )}
-              </span>
-              <button
-                onClick={() => handleToggle(a.key)}
-                className="p-1.5 rounded-md hover:bg-secondary transition-colors"
-                title={isHidden ? t('actionsConfig.show') : t('actionsConfig.hide')}
-              >
-                {isHidden ? (
-                  <EyeOff size={16} className="text-muted-foreground" />
-                ) : (
-                  <Eye size={16} className="text-foreground" />
-                )}
-              </button>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">
+                  {t(`actions.${a.key}`, a.label)}
+                  {'points' in a && a.points != null && (
+                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">{a.points as number}</span>
+                  )}
+                  {currentDirection && (
+                    <span className="ml-1.5 inline-flex items-center justify-center h-5 px-1.5 rounded bg-amber-500/20 text-amber-600 text-[10px] font-bold">🎯 Direction</span>
+                  )}
+                  {currentRating && (
+                    <span className="ml-1.5 inline-flex items-center justify-center h-5 px-1.5 rounded bg-blue-500/20 text-blue-600 text-[10px] font-bold">⭐ Note</span>
+                  )}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleToggle(a.key)}
+                    className="p-1.5 rounded-md hover:bg-secondary transition-colors"
+                    title={isHidden ? t('actionsConfig.show') : t('actionsConfig.hide')}
+                  >
+                    {isHidden ? (
+                      <EyeOff size={16} className="text-muted-foreground" />
+                    ) : (
+                      <Eye size={16} className="text-foreground" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (isEditing) {
+                        setEditingDefaultKey(null);
+                      } else {
+                        setEditingDefaultKey(a.key);
+                        setEditAssignToPlayer(currentAssign);
+                        setEditHasDirection(currentDirection);
+                        setEditHasRating(currentRating);
+                      }
+                    }}
+                    className={`p-1.5 rounded-md transition-colors ${isEditing ? 'bg-primary/20 text-primary' : 'hover:bg-secondary text-muted-foreground'}`}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {isEditing && (
+                <div className="mt-3 pt-3 border-t border-border flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={editAssignToPlayer} onCheckedChange={setEditAssignToPlayer} className="scale-75" />
+                    <Label className="text-xs text-muted-foreground cursor-pointer" onClick={() => setEditAssignToPlayer(!editAssignToPlayer)}>Demander le joueur pour cette action</Label>
+                  </div>
+                  {(sport === 'volleyball' || sport === 'tennis' || sport === 'padel') && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={editHasDirection} onCheckedChange={setEditHasDirection} className="scale-75" />
+                        <Label className="text-xs text-muted-foreground cursor-pointer" onClick={() => setEditHasDirection(!editHasDirection)}>Demander l'origine et la destination (2 clics sur le terrain)</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={editHasRating} onCheckedChange={setEditHasRating} className="scale-75" />
+                        <Label className="text-xs text-muted-foreground cursor-pointer" onClick={() => setEditHasRating(!editHasRating)}>Évaluer la qualité (Positif / Neutre / Négatif)</Label>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-end mt-1">
+                    <button
+                      onClick={() => handleUpdateDefault(a.key)}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-all flex items-center gap-1"
+                    >
+                      <Check size={14} /> Enregistrer
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -137,99 +209,125 @@ export default function ActionsConfig() {
           const isHidden = config.hiddenActions.includes(c.id);
           const showPts = showPtsForCategory;
           return (
-          <div key={c.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-            isHidden ? 'border-border/50 bg-muted/30 opacity-60' : 'border-primary/20 bg-primary/5'
-          }`}>
-            {editingId === c.id ? (
-              <div className="flex items-center gap-2 flex-1 flex-wrap">
-                <Input
-                  value={editLabel}
-                  onChange={e => setEditLabel(e.target.value)}
-                  className="h-8 text-sm flex-1 min-w-[100px]"
-                  onKeyDown={e => e.key === 'Enter' && handleUpdate(c.id)}
-                  autoFocus
-                />
-                {showPts && (
-                  <div className="flex gap-1">
-                    {[1, 2, 3].map(p => (
-                      <button key={p} onClick={() => setEditPoints(p)}
-                        className={`w-7 h-7 rounded-full text-xs font-bold transition-colors ${editPoints === p ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
-                      >{p}</button>
-                    ))}
-                  </div>
-                )}
-                {isNeutral && (
-                  <>
-                    <div className="flex items-center gap-1.5">
-                      <Switch checked={editShowOnCourt} onCheckedChange={setEditShowOnCourt} className="scale-75" />
-                      <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.showOnCourt')}</Label>
+            <div key={c.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${isHidden ? 'border-border/50 bg-muted/30 opacity-60' : 'border-primary/20 bg-primary/5'
+              }`}>
+              {editingId === c.id ? (
+                <div className="flex items-center gap-2 flex-1 flex-wrap">
+                  <Input
+                    value={editLabel}
+                    onChange={e => setEditLabel(e.target.value)}
+                    className="h-8 text-sm flex-1 min-w-[100px]"
+                    onKeyDown={e => e.key === 'Enter' && handleUpdate(c.id)}
+                    autoFocus
+                  />
+                  {showPts && (
+                    <div className="flex gap-1">
+                      {[1, 2, 3].map(p => (
+                        <button key={p} onClick={() => setEditPoints(p)}
+                          className={`w-7 h-7 rounded-full text-xs font-bold transition-colors ${editPoints === p ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
+                        >{p}</button>
+                      ))}
                     </div>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-2 w-full flex-wrap">
                     <div className="flex items-center gap-1.5">
                       <Switch checked={editAssignToPlayer} onCheckedChange={setEditAssignToPlayer} className="scale-75" />
-                      <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.assignToPlayer')}</Label>
+                      <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.assignToPlayer', { defaultValue: 'Demander joueur' })}</Label>
                     </div>
-                    {editShowOnCourt && (
-                      <div className="flex items-center gap-1.5">
-                        <Input
-                          value={editSigil}
-                          onChange={e => setEditSigil(e.target.value.slice(0, 2).toUpperCase())}
-                          placeholder={t('actionsConfig.sigilPlaceholder')}
-                          className="h-8 text-sm w-14"
-                        />
-                        <span className="text-[10px] text-muted-foreground">{t('actionsConfig.sigilHelp')}</span>
-                      </div>
+                    {(sport === 'volleyball' || sport === 'tennis' || sport === 'padel') && (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <Switch checked={editHasDirection} onCheckedChange={setEditHasDirection} className="scale-75" />
+                          <Label className="text-[10px] text-muted-foreground">Direction (2 clics)</Label>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Switch checked={editHasRating} onCheckedChange={setEditHasRating} className="scale-75" />
+                          <Label className="text-[10px] text-muted-foreground">Évaluer qualité</Label>
+                        </div>
+                      </>
                     )}
-                  </>
-                )}
-                <button onClick={() => handleUpdate(c.id)} className="p-1 text-primary">
-                  <Check size={16} />
-                </button>
-                <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground">
-                  <X size={16} />
-                </button>
-              </div>
-            ) : (
-              <>
-                <span className="text-sm font-medium text-foreground">
-                  {c.label}
-                  {showPts && c.points != null && (
-                    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">{c.points}</span>
-                  )}
-                  {isNeutral && c.sigil && (
-                    <span className="ml-1.5 inline-flex items-center justify-center w-6 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold">{c.sigil}</span>
-                  )}
-                  {isNeutral && c.showOnCourt && (
-                    <span className="ml-1 text-[10px] text-muted-foreground">📍</span>
-                  )}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleToggle(c.id)}
-                    className="p-1.5 rounded-md hover:bg-secondary transition-colors"
-                    title={isHidden ? t('actionsConfig.show') : t('actionsConfig.hide')}
-                  >
-                    {isHidden ? (
-                      <EyeOff size={14} className="text-muted-foreground" />
-                    ) : (
-                      <Eye size={14} className="text-foreground" />
+                    {isNeutral && (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <Switch checked={editShowOnCourt} onCheckedChange={setEditShowOnCourt} className="scale-75" />
+                          <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.showOnCourt')}</Label>
+                        </div>
+                        {editShowOnCourt && (
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <Input
+                              value={editSigil}
+                              onChange={e => setEditSigil(e.target.value.slice(0, 2).toUpperCase())}
+                              placeholder={t('actionsConfig.sigilPlaceholder')}
+                              className="h-8 text-sm w-14"
+                            />
+                            <span className="text-[10px] text-muted-foreground">{t('actionsConfig.sigilHelp')}</span>
+                          </div>
+                        )}
+                      </>
                     )}
-                  </button>
-                  <button
-                    onClick={() => { setEditingId(c.id); setEditLabel(c.label); setEditPoints(c.points ?? 2); setEditSigil(c.sigil ?? ''); setEditShowOnCourt(c.showOnCourt ?? false); setEditAssignToPlayer(c.assignToPlayer ?? true); }}
-                    className="p-1.5 rounded-md hover:bg-secondary transition-colors"
-                  >
-                    <Pencil size={14} className="text-muted-foreground" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(c.id)}
-                    className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 size={14} className="text-destructive" />
-                  </button>
+                  </div>
+                  <div className="w-full flex justify-end gap-2 mt-1">
+                    <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:bg-secondary rounded">
+                      <X size={16} />
+                    </button>
+                    <button onClick={() => handleUpdate(c.id)} className="p-1 text-primary hover:bg-primary/10 rounded">
+                      <Check size={16} />
+                    </button>
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <span className="text-sm font-medium text-foreground">
+                    {c.label}
+                    {showPts && c.points != null && (
+                      <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">{c.points}</span>
+                    )}
+                    {isNeutral && c.sigil && (
+                      <span className="ml-1.5 inline-flex items-center justify-center w-6 h-5 rounded bg-muted text-muted-foreground text-[10px] font-bold">{c.sigil}</span>
+                    )}
+                    {isNeutral && c.showOnCourt && (
+                      <span className="ml-1 text-[10px] text-muted-foreground">📍</span>
+                    )}
+                    {c.hasDirection && (
+                      <span className="ml-1.5 inline-flex items-center justify-center h-5 px-1.5 rounded bg-amber-500/20 text-amber-600 text-[10px] font-bold">🎯</span>
+                    )}
+                    {c.hasRating && (
+                      <span className="ml-1.5 inline-flex items-center justify-center h-5 px-1.5 rounded bg-blue-500/20 text-blue-600 text-[10px] font-bold">⭐</span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleToggle(c.id)}
+                      className="p-1.5 rounded-md hover:bg-secondary transition-colors"
+                      title={isHidden ? t('actionsConfig.show') : t('actionsConfig.hide')}
+                    >
+                      {isHidden ? (
+                        <EyeOff size={14} className="text-muted-foreground" />
+                      ) : (
+                        <Eye size={14} className="text-foreground" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingId(c.id); setEditLabel(c.label); setEditPoints(c.points ?? 2);
+                        setEditSigil(c.sigil ?? ''); setEditShowOnCourt(c.showOnCourt ?? false);
+                        setEditAssignToPlayer(c.assignToPlayer ?? true);
+                        setEditHasDirection(c.hasDirection ?? false); setEditHasRating(c.hasRating ?? false);
+                      }}
+                      className="p-1.5 rounded-md hover:bg-secondary transition-colors"
+                    >
+                      <Pencil size={14} className="text-muted-foreground" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      className="p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 size={14} className="text-destructive" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           );
         })}
 
@@ -265,29 +363,43 @@ export default function ActionsConfig() {
                 <X size={16} />
               </button>
             </div>
-            {isNeutral && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <Switch checked={newShowOnCourt} onCheckedChange={setNewShowOnCourt} className="scale-75" />
-                  <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.showOnCourt')}</Label>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Switch checked={newAssignToPlayer} onCheckedChange={setNewAssignToPlayer} className="scale-75" />
-                  <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.assignToPlayer')}</Label>
-                </div>
-                {newShowOnCourt && (
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      value={newSigil}
-                      onChange={e => setNewSigil(e.target.value.slice(0, 2).toUpperCase())}
-                      placeholder={t('actionsConfig.sigilPlaceholder')}
-                      className="h-8 text-sm w-14"
-                    />
-                    <span className="text-[10px] text-muted-foreground">{t('actionsConfig.sigilHelp')}</span>
-                  </div>
-                )}
+            <div className="flex items-center gap-2 flex-wrap mt-2">
+              <div className="flex items-center gap-1.5">
+                <Switch checked={newAssignToPlayer} onCheckedChange={setNewAssignToPlayer} className="scale-75" />
+                <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.assignToPlayer', { defaultValue: 'Demander joueur' })}</Label>
               </div>
-            )}
+              {(sport === 'volleyball' || sport === 'tennis' || sport === 'padel') && (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <Switch checked={newHasDirection} onCheckedChange={setNewHasDirection} className="scale-75" />
+                    <Label className="text-[10px] text-muted-foreground">Direction (2 clics)</Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Switch checked={newHasRating} onCheckedChange={setNewHasRating} className="scale-75" />
+                    <Label className="text-[10px] text-muted-foreground">Évaluer qualité</Label>
+                  </div>
+                </>
+              )}
+              {isNeutral && (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <Switch checked={newShowOnCourt} onCheckedChange={setNewShowOnCourt} className="scale-75" />
+                    <Label className="text-[10px] text-muted-foreground">{t('actionsConfig.showOnCourt')}</Label>
+                  </div>
+                  {newShowOnCourt && (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        value={newSigil}
+                        onChange={e => setNewSigil(e.target.value.slice(0, 2).toUpperCase())}
+                        placeholder={t('actionsConfig.sigilPlaceholder')}
+                        className="h-8 text-sm w-14"
+                      />
+                      <span className="text-[10px] text-muted-foreground">{t('actionsConfig.sigilHelp')}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

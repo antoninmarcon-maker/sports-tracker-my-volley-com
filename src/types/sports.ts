@@ -4,7 +4,7 @@ export type SportType = 'volleyball' | 'basketball' | 'tennis' | 'padel';
 
 // ---- VOLLEYBALL ----
 export type OffensiveAction = 'attack' | 'ace' | 'block' | 'bidouille' | 'seconde_main' | 'other_offensive';
-export type FaultAction = 'out' | 'net_fault' | 'service_miss' | 'block_out' | 'other_volley_fault';
+export type FaultAction = 'out' | 'net_fault' | 'service_miss' | 'block_out' | 'gameplay_fault' | 'other_volley_fault';
 
 // ---- BASKETBALL ----
 export type BasketScoredAction = 'free_throw' | 'two_points' | 'three_points';
@@ -18,7 +18,7 @@ export type TennisFaultAction = 'double_fault' | 'unforced_error_forehand' | 'un
 export type PadelScoredAction = 'padel_ace' | 'vibora' | 'bandeja' | 'smash_padel' | 'volee' | 'bajada' | 'chiquita_winner' | 'par_3' | 'other_padel_winner';
 export type PadelFaultAction = 'padel_double_fault' | 'padel_unforced_error' | 'padel_net_error' | 'padel_out' | 'grille_error' | 'vitre_error' | 'other_padel_fault';
 // ---- NEUTRAL (per-sport generic key for custom neutral actions) ----
-export type NeutralAction = 'other_volley_neutral' | 'other_basket_neutral' | 'other_tennis_neutral' | 'other_padel_neutral';
+export type NeutralAction = 'timeout' | 'other_volley_neutral' | 'other_basket_neutral' | 'other_tennis_neutral' | 'other_padel_neutral';
 
 export type ActionType =
   | OffensiveAction | FaultAction
@@ -43,7 +43,13 @@ export const FAULT_ACTIONS: { key: FaultAction; label: string }[] = [
   { key: 'net_fault', label: 'Filet' },
   { key: 'service_miss', label: 'Service loupé' },
   { key: 'block_out', label: 'Block Out' },
+  { key: 'gameplay_fault', label: 'Faute de jeu' },
   { key: 'other_volley_fault', label: 'Autre' },
+];
+
+export const NEUTRAL_ACTIONS_VOLLEYBALL: { key: NeutralAction; label: string }[] = [
+  { key: 'timeout', label: 'Temps mort' },
+  { key: 'other_volley_neutral', label: 'Autre' },
 ];
 
 export const BASKET_SCORED_ACTIONS: { key: BasketScoredAction; label: string; points: number }[] = [
@@ -109,8 +115,8 @@ export const OTHER_ACTION_KEYS: Record<SportType, { scored: ActionType; fault: A
   padel: { scored: 'other_padel_winner', fault: 'other_padel_fault', neutral: 'other_padel_neutral' },
 };
 
-export function getNeutralActionsForSport(_sport: SportType): { key: string; label: string }[] {
-  // No default neutral actions — all are custom
+export function getNeutralActionsForSport(sport: SportType): { key: string; label: string }[] {
+  if (sport === 'volleyball') return NEUTRAL_ACTIONS_VOLLEYBALL;
   return [];
 }
 
@@ -206,6 +212,10 @@ export interface MatchMetadata {
   matchFormat?: MatchFormat;
   /** Whether the interactive court is enabled (default: true) */
   hasCourt?: boolean;
+  /** Whether performance mode (rally tracking) is enabled */
+  isPerformanceMode?: boolean;
+  /** Snapshot map to keep historical player names even after roster edits */
+  playerAliases?: Record<string, string>;
 }
 
 export function getDefaultMatchFormat(sport: SportType): MatchFormat {
@@ -216,6 +226,27 @@ export interface Player {
   id: string;
   name: string;
   number?: string;
+}
+
+export interface RallyAction {
+  id: string;
+  team: Team;
+  type: PointType;
+  action: ActionType;
+  x: number;
+  y: number;
+  playerId?: string;
+  timestamp: number;
+  customActionLabel?: string;
+  sigil?: string;
+  showOnCourt?: boolean;
+  /** Direction tracking: start coordinates */
+  startX?: number;
+  startY?: number;
+  /** Direction tracking: end coordinates */
+  endX?: number;
+  endY?: number;
+  rating?: 'negative' | 'neutral' | 'positive';
 }
 
 export interface Point {
@@ -231,6 +262,9 @@ export interface Point {
   customActionLabel?: string; // For custom actions mapped to "other"
   sigil?: string; // Max 2 chars for neutral point display on court
   showOnCourt?: boolean; // Whether to display on interactive court
+  /** Rally sub-actions when Performance Mode is active */
+  rallyActions?: RallyAction[];
+  rating?: 'negative' | 'neutral' | 'positive';
 }
 
 export interface SetData {
@@ -263,6 +297,7 @@ export interface MatchSummary {
   players?: Player[];
   sport?: SportType;
   metadata?: MatchMetadata;
+  aiAnalysis?: string;
 }
 
 export type CourtZone = 'opponent_court' | 'outside_opponent' | 'net_line' | 'outside_own';

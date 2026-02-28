@@ -9,6 +9,14 @@ interface VolleyballCourtProps {
   sidesSwapped: boolean;
   teamNames: { blue: string; red: string };
   onCourtClick: (x: number, y: number) => void;
+  directionOrigin?: { x: number; y: number } | null;
+  pendingDirectionAction?: boolean;
+  isViewingMode?: boolean;
+  isPerformanceMode?: boolean;
+  viewingActions?: any[];
+  activeRallyActions?: any[];
+  viewingPoint?: Point | null;
+  playerAliases?: Record<string, string>;
 }
 
 // Court dimensions in SVG coordinates
@@ -25,7 +33,7 @@ const BACK_DEPTH = 80; // pixels from baseline inward
 
 function getClickZone(svgX: number, svgY: number): ZoneType {
   const isInsideCourt = svgX >= COURT_LEFT && svgX <= COURT_RIGHT && svgY >= COURT_TOP && svgY <= COURT_BOTTOM;
-  
+
   if (isInsideCourt) {
     // Net zone: within 15px of center line
     if (Math.abs(svgX - NET_X) < 15) {
@@ -37,7 +45,7 @@ function getClickZone(svgX: number, svgY: number): ZoneType {
     if (svgX < NET_X) return 'left_court';
     return 'right_court';
   }
-  
+
   // Outside zones
   if (svgX < NET_X) return 'outside_left';
   return 'outside_right';
@@ -109,28 +117,36 @@ function getZoneHighlights(
     case 'service_miss': {
       // Behind opponent's baseline (where they served from, outside the court)
       if (opponentSide === 'left') {
-        return { allowed: [
-          { x: 0, y: 0, w: COURT_LEFT, h: 400 },
-        ]};
+        return {
+          allowed: [
+            { x: 0, y: 0, w: COURT_LEFT, h: 400 },
+          ]
+        };
       }
-      return { allowed: [
-        { x: COURT_RIGHT, y: 0, w: 600 - COURT_RIGHT, h: 400 },
-      ]};
+      return {
+        allowed: [
+          { x: COURT_RIGHT, y: 0, w: 600 - COURT_RIGHT, h: 400 },
+        ]
+      };
     }
     case 'out': {
       // Outside scoring team's court (ball went out on their side)
       if (teamSide === 'left') {
-        return { allowed: [
-          { x: 0, y: 0, w: COURT_LEFT, h: 400 },
-          { x: COURT_LEFT, y: 0, w: NET_X - COURT_LEFT, h: COURT_TOP },
-          { x: COURT_LEFT, y: COURT_BOTTOM, w: NET_X - COURT_LEFT, h: 400 - COURT_BOTTOM },
-        ]};
+        return {
+          allowed: [
+            { x: 0, y: 0, w: COURT_LEFT, h: 400 },
+            { x: COURT_LEFT, y: 0, w: NET_X - COURT_LEFT, h: COURT_TOP },
+            { x: COURT_LEFT, y: COURT_BOTTOM, w: NET_X - COURT_LEFT, h: 400 - COURT_BOTTOM },
+          ]
+        };
       }
-      return { allowed: [
-        { x: COURT_RIGHT, y: 0, w: 600 - COURT_RIGHT, h: 400 },
-        { x: NET_X, y: 0, w: COURT_RIGHT - NET_X, h: COURT_TOP },
-        { x: NET_X, y: COURT_BOTTOM, w: COURT_RIGHT - NET_X, h: 400 - COURT_BOTTOM },
-      ]};
+      return {
+        allowed: [
+          { x: COURT_RIGHT, y: 0, w: 600 - COURT_RIGHT, h: 400 },
+          { x: NET_X, y: 0, w: COURT_RIGHT - NET_X, h: COURT_TOP },
+          { x: NET_X, y: COURT_BOTTOM, w: COURT_RIGHT - NET_X, h: 400 - COURT_BOTTOM },
+        ]
+      };
     }
     case 'net_fault': {
       // Opponent's side of the net
@@ -141,19 +157,37 @@ function getZoneHighlights(
     }
     case 'block_out': {
       // All outside zones (both sides)
-      return { allowed: [
-        { x: 0, y: 0, w: COURT_LEFT, h: 400 },
-        { x: COURT_LEFT, y: 0, w: COURT_RIGHT - COURT_LEFT, h: COURT_TOP },
-        { x: COURT_LEFT, y: COURT_BOTTOM, w: COURT_RIGHT - COURT_LEFT, h: 400 - COURT_BOTTOM },
-        { x: COURT_RIGHT, y: 0, w: 600 - COURT_RIGHT, h: 400 },
-      ]};
+      return {
+        allowed: [
+          { x: 0, y: 0, w: COURT_LEFT, h: 400 },
+          { x: COURT_LEFT, y: 0, w: COURT_RIGHT - COURT_LEFT, h: COURT_TOP },
+          { x: COURT_LEFT, y: COURT_BOTTOM, w: COURT_RIGHT - COURT_LEFT, h: 400 - COURT_BOTTOM },
+          { x: COURT_RIGHT, y: 0, w: 600 - COURT_RIGHT, h: 400 },
+        ]
+      };
     }
     default:
       return { allowed: [{ x: 0, y: 0, w: 600, h: 400 }] };
   }
 }
 
-export function VolleyballCourt({ points, selectedTeam, selectedAction, selectedPointType, sidesSwapped = false, teamNames = { blue: 'Bleue', red: 'Rouge' }, onCourtClick }: VolleyballCourtProps) {
+export function VolleyballCourt({
+  points,
+  selectedTeam,
+  selectedAction,
+  selectedPointType,
+  sidesSwapped = false,
+  teamNames = { blue: 'Bleue', red: 'Rouge' },
+  onCourtClick,
+  directionOrigin,
+  pendingDirectionAction,
+  isViewingMode,
+  isPerformanceMode,
+  viewingActions = [],
+  activeRallyActions = [],
+  viewingPoint,
+  playerAliases = {}
+}: VolleyballCourtProps) {
   const courtRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -177,12 +211,12 @@ export function VolleyballCourt({ points, selectedTeam, selectedAction, selected
       const rect = courtRef.current.getBoundingClientRect();
       const x = (clientX - rect.left) / rect.width;
       const y = (clientY - rect.top) / rect.height;
-      
+
       // Convert to SVG coords for zone check
       const svgX = x * 600;
       const svgY = y * 400;
       const zone = getClickZone(svgX, svgY);
-      
+
       if (isZoneAllowed(zone, selectedTeam!, selectedAction!, selectedPointType!, sidesSwapped)) {
         onCourtClick(x, y);
       }
@@ -251,6 +285,75 @@ export function VolleyballCourt({ points, selectedTeam, selectedAction, selected
               </rect>
             </g>
           </>
+        )}
+
+        {/* Direction origin marker */}
+        {directionOrigin && (
+          <circle
+            cx={directionOrigin.x * 600}
+            cy={directionOrigin.y * 400}
+            r={6}
+            fill="hsl(var(--primary))"
+            className="animate-pulse"
+          />
+        )}
+
+        {/* Active Rally Actions line */}
+        {activeRallyActions.length > 0 && (
+          <g>
+            {activeRallyActions.map((act, i) => {
+              const cx = act.x * 600;
+              const cy = act.y * 400;
+              const isLast = i === activeRallyActions.length - 1;
+              const color = act.team === 'blue' ? 'hsl(217, 91%, 60%)' : 'hsl(0, 84%, 60%)';
+              return (
+                <g key={act.id}>
+                  {i > 0 && (
+                    <line
+                      x1={activeRallyActions[i - 1].x * 600}
+                      y1={activeRallyActions[i - 1].y * 400}
+                      x2={cx}
+                      y2={cy}
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeDasharray="4 4"
+                      opacity="0.5"
+                    />
+                  )}
+                  <circle cx={cx} cy={cy} r={isLast ? 8 : 5} fill={color} />
+                </g>
+              );
+            })}
+          </g>
+        )}
+
+        {/* Viewing actions (Replay) */}
+        {isViewingMode && viewingActions && viewingActions.length > 0 && (
+          <g>
+            {viewingActions.map((act, i) => {
+              const cx = act.x * 600;
+              const cy = act.y * 400;
+              const isLast = i === viewingActions.length - 1;
+              const color = act.team === 'blue' ? 'hsl(217, 91%, 60%)' : 'hsl(0, 84%, 60%)';
+              return (
+                <g key={`view-${act.id}`}>
+                  {i > 0 && (
+                    <line
+                      x1={viewingActions[i - 1].x * 600}
+                      y1={viewingActions[i - 1].y * 400}
+                      x2={cx}
+                      y2={cy}
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeDasharray="4 4"
+                      opacity="0.5"
+                    />
+                  )}
+                  <circle cx={cx} cy={cy} r={isLast ? 10 : 6} fill={color} stroke="white" strokeWidth="2" />
+                </g>
+              );
+            })}
+          </g>
         )}
 
         {/* Court border */}

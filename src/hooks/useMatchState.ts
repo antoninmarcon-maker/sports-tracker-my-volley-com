@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Team, Point, PointType, ActionType, SetData, Player, SportType, isBasketScoredAction, getBasketPointValue, MatchMetadata } from '@/types/sports';
+import { Team, Point, PointType, ActionType, SetData, Player, SportType, isBasketScoredAction, getBasketPointValue, MatchMetadata, RallyAction } from '@/types/sports';
 import { getMatch, saveMatch, saveLastRoster } from '@/lib/matchStorage';
 
 export function useMatchState(matchId: string, ready: boolean = true) {
@@ -19,9 +19,35 @@ export function useMatchState(matchId: string, ready: boolean = true) {
   const [teamNames, setTeamNames] = useState(loaded?.teamNames ?? { blue: 'Bleue', red: 'Rouge' });
   const [sidesSwapped, setSidesSwapped] = useState(loaded?.sidesSwapped ?? false);
   const [players, setPlayers] = useState<Player[]>(loaded?.players ?? []);
+  const [playerAliases, setPlayerAliases] = useState<Record<string, string>>(() => {
+    const metadataAliases = loaded?.metadata?.playerAliases ?? {};
+    const rosterAliases = Object.fromEntries(
+      (loaded?.players ?? [])
+        .filter((p) => p.name?.trim())
+        .map((p) => [p.id, p.name])
+    );
+    return { ...metadataAliases, ...rosterAliases };
+  });
   const [pendingPoint, setPendingPoint] = useState<Omit<Point, 'playerId'> | null>(null);
   const [initialServer, setInitialServer] = useState<Team | null>((loaded?.metadata as MatchMetadata | undefined)?.initialServer ?? null);
   const sport: SportType = loaded?.sport ?? 'volleyball';
+
+  // --- Performance Mode (Rally Tracking) ---
+  const isPerformanceMode = loaded?.metadata?.isPerformanceMode ?? false;
+  const [currentRallyActions, setCurrentRallyActions] = useState<RallyAction[]>([]);
+
+  // Direction mode: waiting for 2nd click
+  const [directionOrigin, setDirectionOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [pendingDirectionAction, setPendingDirectionAction] = useState<{
+    team: Team; type: PointType; action: ActionType;
+    customLabel?: string; sigil?: string; showOnCourt?: boolean;
+  } | null>(null);
+
+  // Pre-selected player: chosen BEFORE court click in performance mode
+  const [preSelectedPlayerId, setPreSelectedPlayerId] = useState<string | null>(null);
+
+  // Pre-selected rating: chosen BEFORE court click in performance mode
+  const [preSelectedRating, setPreSelectedRating] = useState<'negative' | 'neutral' | 'positive' | null>(null);
 
   // When ready becomes true after initial empty render, reload state from localStorage
   useEffect(() => {
@@ -33,11 +59,8 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     const sets = match.completedSets ?? [];
     let setNum = match.currentSetNumber ?? 1;
     let swapped = match.sidesSwapped ?? false;
-    // Fix: if completed sets already cover currentSetNumber, auto-increment
-    // This handles the case where waitingForNewSet was lost on reload
     if (sets.length > 0 && sets.some(s => s.number === setNum) && (match.points ?? []).length === 0) {
       setNum = sets.length + 1;
-      // Recalculate sidesSwapped based on number of completed sets (volleyball swaps each set)
       if ((match.sport ?? 'volleyball') === 'volleyball') {
         swapped = sets.length % 2 !== 0;
       }
@@ -47,9 +70,32 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     setPoints(match.points ?? []);
     setTeamNames(match.teamNames ?? { blue: 'Bleue', red: 'Rouge' });
     setSidesSwapped(swapped);
-    setPlayers(match.players ?? []);
+    const hydratedPlayers = match.players ?? [];
+    setPlayers(hydratedPlayers);
+    const hydratedAliases = match.metadata?.playerAliases ?? {};
+    const rosterAliases = Object.fromEntries(
+      hydratedPlayers
+        .filter((p) => p.name?.trim())
+        .map((p) => [p.id, p.name])
+    );
+    setPlayerAliases({ ...hydratedAliases, ...rosterAliases });
     setChronoSeconds(match.chronoSeconds ?? 0);
   }, [ready, matchId]);
+
+  // Keep aliases in sync when roster changes
+  useEffect(() => {
+    setPlayerAliases((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      players.forEach((player) => {
+        if (player.name?.trim() && next[player.id] !== player.name) {
+          next[player.id] = player.name;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [players]);
 
   // Chrono
   const [chronoRunning, setChronoRunning] = useState(false);
@@ -86,37 +132,155 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     setSelectedTeam(null);
     setSelectedPointType(null);
     setSelectedAction(null);
+    setDirectionOrigin(null);
+    setPendingDirectionAction(null);
+    setPreSelectedPlayerId(null);
+    setPreSelectedRating(null);
   }, []);
 
+  // --- Direction mode helpers ---
+  const startDirectionMode = useCallback((
+    team: Team, type: PointType, action: ActionType,
+    x: number, y: number, customLabel?: string, sigil?: string, showOnCourt?: boolean
+  ) => {
+    setDirectionOrigin({ x, y });
+    setPendingDirectionAction({ team, type, action, customLabel, sigil, showOnCourt });
+  }, []);
+
+  // Process a rally action: accumulate neutrals, conclude on scored/fault
+  const processRallyAction = useCallback((rallyAction: RallyAction, team: Team, type: PointType) => {
+    setPreSelectedPlayerId(null);
+    setPreSelectedRating(null);
+
+    if (type === 'neutral') {
+      setCurrentRallyActions(prev => [...prev, rallyAction]);
+    } else {
+      const allRallyActions = [...currentRallyActions, rallyAction];
+      const point: Point = {
+        id: crypto.randomUUID(),
+        team,
+        type,
+        action: rallyAction.action,
+        x: rallyAction.x,
+        y: rallyAction.y,
+        timestamp: Date.now(),
+        rallyActions: allRallyActions,
+        ...(rallyAction.customActionLabel ? { customActionLabel: rallyAction.customActionLabel } : {}),
+        ...(rallyAction.sigil ? { sigil: rallyAction.sigil } : {}),
+        ...(rallyAction.showOnCourt ? { showOnCourt: true } : {}),
+        ...(preSelectedPlayerId ? { playerId: preSelectedPlayerId } : {}),
+      };
+
+      if (rallyAction.playerId) {
+        setPoints(prev => [...prev, point]);
+      } else {
+        const shouldAssignPlayer = players.length > 0 && (
+          type === 'neutral' || team === 'blue' || (team === 'red' && type === 'fault')
+        );
+        if (shouldAssignPlayer) {
+          setPendingPoint(point);
+        } else {
+          setPoints(prev => [...prev, point]);
+        }
+      }
+      setCurrentRallyActions([]);
+    }
+  }, [currentRallyActions, players.length, preSelectedPlayerId]);
+
+  const completeDirectionAction = useCallback((endX: number, endY: number) => {
+    if (!pendingDirectionAction || !directionOrigin) return;
+    const { team, type, action, customLabel, sigil, showOnCourt } = pendingDirectionAction;
+    const rallyAction: RallyAction = {
+      id: crypto.randomUUID(),
+      team, type, action,
+      x: directionOrigin.x, y: directionOrigin.y,
+      startX: directionOrigin.x, startY: directionOrigin.y,
+      endX, endY,
+      timestamp: Date.now(),
+      ...(customLabel ? { customActionLabel: customLabel } : {}),
+      ...(sigil ? { sigil } : {}),
+      ...(showOnCourt ? { showOnCourt: true } : {}),
+      ...(preSelectedPlayerId ? { playerId: preSelectedPlayerId } : {}),
+      ...(preSelectedRating ? { rating: preSelectedRating } : {}),
+    };
+    setDirectionOrigin(null);
+    setPendingDirectionAction(null);
+    processRallyAction(rallyAction, team, type);
+  }, [pendingDirectionAction, directionOrigin, processRallyAction, preSelectedPlayerId, preSelectedRating]);
+
   const addPoint = useCallback((x: number, y: number) => {
+    // Priority: intercept 2nd direction click
+    if (pendingDirectionAction && directionOrigin) {
+      completeDirectionAction(x, y);
+      cancelSelection();
+      return;
+    }
+
     if (!selectedTeam || !selectedPointType || !selectedAction) return;
     if (!chronoRunning) {
       setChronoRunning(true);
     }
+    // Timeout action: pause chrono
+    if (selectedAction === 'timeout') {
+      setChronoRunning(false);
+    }
+
     const pointValue = sport === 'basketball' && isBasketScoredAction(selectedAction)
       ? getBasketPointValue(selectedAction)
       : undefined;
-    // Read and clear pending custom action label
+
     const customLabel = (window as any).__pendingCustomActionLabel;
     if (customLabel) delete (window as any).__pendingCustomActionLabel;
     const customSigil = (window as any).__pendingCustomSigil;
     if (customSigil) delete (window as any).__pendingCustomSigil;
     const customShowOnCourt = (window as any).__pendingCustomShowOnCourt;
     if (customShowOnCourt !== undefined) delete (window as any).__pendingCustomShowOnCourt;
+    const hasDirection = (window as any).__pendingHasDirection;
+    if (hasDirection !== undefined) delete (window as any).__pendingHasDirection;
+
+    // --- Performance Mode with direction: 1st click (origin) ---
+    if (isPerformanceMode && hasDirection && !directionOrigin) {
+      startDirectionMode(selectedTeam, selectedPointType, selectedAction, x, y, customLabel, customSigil, customShowOnCourt);
+      return;
+    }
+
+    // --- Performance Mode: rally accumulation ---
+    if (isPerformanceMode) {
+      const rallyAction: RallyAction = {
+        id: crypto.randomUUID(),
+        team: selectedTeam,
+        type: selectedPointType,
+        action: selectedAction,
+        x, y,
+        timestamp: Date.now(),
+        ...(customLabel ? { customActionLabel: customLabel } : {}),
+        ...(customSigil ? { sigil: customSigil } : {}),
+        ...(customShowOnCourt ? { showOnCourt: true } : {}),
+        ...(preSelectedPlayerId ? { playerId: preSelectedPlayerId } : {}),
+        ...(preSelectedRating ? { rating: preSelectedRating } : {}),
+      };
+      const team = selectedTeam;
+      const type = selectedPointType;
+      setSelectedTeam(null);
+      setSelectedPointType(null);
+      setSelectedAction(null);
+      processRallyAction(rallyAction, team, type);
+      return;
+    }
+
+    // --- Standard Mode ---
     const point: Point = {
       id: crypto.randomUUID(),
       team: selectedTeam,
       type: selectedPointType,
       action: selectedAction,
-      x,
-      y,
+      x, y,
       timestamp: Date.now(),
       pointValue,
       ...(customLabel ? { customActionLabel: customLabel } : {}),
       ...(customSigil ? { sigil: customSigil } : {}),
       ...(customShowOnCourt ? { showOnCourt: true } : {}),
     };
-    // Show player selector for blue team actions + red team fault points + neutral points
     if (players.length > 0 && (point.type === 'neutral' || point.team === 'blue' || (point.team === 'red' && point.type === 'fault'))) {
       setPendingPoint(point);
     } else {
@@ -125,7 +289,11 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     setSelectedTeam(null);
     setSelectedPointType(null);
     setSelectedAction(null);
-  }, [selectedTeam, selectedPointType, selectedAction, chronoRunning, points.length, players.length, sport]);
+  }, [
+    selectedTeam, selectedPointType, selectedAction, chronoRunning, players.length, sport,
+    isPerformanceMode, directionOrigin, pendingDirectionAction, completeDirectionAction,
+    cancelSelection, startDirectionMode, processRallyAction, preSelectedPlayerId, preSelectedRating,
+  ]);
 
   // Basketball free throw: add point directly without court placement
   const addFreeThrow = useCallback(() => {
@@ -155,9 +323,15 @@ export function useMatchState(matchId: string, ready: boolean = true) {
 
   const assignPlayer = useCallback((playerId: string) => {
     if (!pendingPoint) return;
+    const playerName = players.find((player) => player.id === playerId)?.name;
+    if (playerName) {
+      setPlayerAliases((prev) => (
+        prev[playerId] === playerName ? prev : { ...prev, [playerId]: playerName }
+      ));
+    }
     setPoints(prev => [...prev, { ...pendingPoint, playerId }]);
     setPendingPoint(null);
-  }, [pendingPoint]);
+  }, [pendingPoint, players]);
 
   const skipPlayerAssignment = useCallback(() => {
     if (!pendingPoint) return;
@@ -165,11 +339,28 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     setPendingPoint(null);
   }, [pendingPoint]);
 
+  // --- Smart Undo ---
   const undo = useCallback(() => {
+    if (isPerformanceMode) {
+      if (currentRallyActions.length > 0) {
+        setCurrentRallyActions(prev => prev.slice(0, -1));
+        return;
+      }
+      if (points.length > 0) {
+        const lastPoint = points[points.length - 1];
+        if (lastPoint.rallyActions && lastPoint.rallyActions.length > 0) {
+          const rally = lastPoint.rallyActions;
+          const neutralActions = rally.slice(0, -1);
+          setCurrentRallyActions(neutralActions);
+          setPoints(prev => prev.slice(0, -1));
+          return;
+        }
+      }
+    }
     setPoints(prev => prev.slice(0, -1));
-  }, []);
+  }, [isPerformanceMode, currentRallyActions, points]);
 
-  // Score calculation: basketball uses pointValue, volleyball uses count — always exclude neutral
+  // Score calculation
   const score = useMemo(() => {
     const scoringPoints = points.filter(p => p.type !== 'neutral');
     if (sport === 'basketball') {
@@ -217,6 +408,7 @@ export function useMatchState(matchId: string, ready: boolean = true) {
   };
 
   const [waitingForNewSet, setWaitingForNewSet] = useState(false);
+  const [lastEndedSetScore, setLastEndedSetScore] = useState<{ blue: number; red: number } | null>(null);
 
   const endSet = useCallback(() => {
     if (points.length === 0) return;
@@ -230,7 +422,9 @@ export function useMatchState(matchId: string, ready: boolean = true) {
       duration: chronoSeconds,
     };
     setCompletedSets(prev => [...prev, setData]);
+    setLastEndedSetScore({ ...score });
     setPoints([]);
+    setCurrentRallyActions([]);
     setSelectedTeam(null);
     setSelectedPointType(null);
     setSelectedAction(null);
@@ -240,11 +434,11 @@ export function useMatchState(matchId: string, ready: boolean = true) {
 
   const startNewSet = useCallback(() => {
     setCurrentSetNumber(prev => prev + 1);
-    // All sports: swap sides at new set
     if (sport === 'volleyball' || sport === 'tennis' || sport === 'padel') {
       setSidesSwapped(prev => !prev);
     }
     setWaitingForNewSet(false);
+    setLastEndedSetScore(null);
   }, [sport]);
 
   const finishMatch = useCallback(() => {
@@ -262,9 +456,14 @@ export function useMatchState(matchId: string, ready: boolean = true) {
       setPoints([]);
     }
     setChronoRunning(false);
+    setCurrentRallyActions([]);
     const match = getMatch(matchId);
     if (match) {
-      saveMatch({ ...match, finished: true, updatedAt: Date.now() });
+      const cleanedSets = [...(match.completedSets ?? []), ...(points.length > 0 ? [{
+        id: crypto.randomUUID(), number: currentSetNumber, points: [...points],
+        score: { ...score }, winner: (score.blue >= score.red ? 'blue' : 'red') as Team, duration: chronoSeconds,
+      }] : [])].filter(s => s.points.length > 0);
+      saveMatch({ ...match, completedSets: cleanedSets, points: [], finished: true, updatedAt: Date.now() });
     }
   }, [points, score, currentSetNumber, chronoSeconds, matchId]);
 
@@ -280,15 +479,21 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     setSelectedPointType(null);
     setSelectedAction(null);
     setSidesSwapped(false);
+    setCurrentRallyActions([]);
     resetChrono();
   }, [resetChrono]);
 
-  // Auto-save (include initialServer in metadata)
+  // Auto-save — preserve ghost players
   useEffect(() => {
     if (!loaded) return;
+    const knownIds = new Set(players.map(p => p.id));
+    const previousPlayers: Player[] = loaded.players ?? [];
+    const ghostPlayers = previousPlayers.filter(p => !knownIds.has(p.id) && allPoints.some(pt => pt.playerId === p.id));
+    const mergedPlayers = [...players, ...ghostPlayers];
     const updatedMetadata = {
       ...(loaded.metadata as Record<string, unknown> ?? {}),
       initialServer: initialServer,
+      playerAliases,
     };
     saveMatch({
       ...loaded,
@@ -298,12 +503,20 @@ export function useMatchState(matchId: string, ready: boolean = true) {
       teamNames,
       sidesSwapped,
       chronoSeconds,
-      players,
+      players: mergedPlayers,
       metadata: updatedMetadata as any,
       updatedAt: Date.now(),
     });
     saveLastRoster(players);
-  }, [completedSets, currentSetNumber, points, teamNames, sidesSwapped, chronoSeconds, players, loaded, initialServer]);
+  }, [completedSets, currentSetNumber, points, teamNames, sidesSwapped, chronoSeconds, players, loaded, allPoints, playerAliases, initialServer]);
+
+  // Can undo check for performance mode
+  const canUndo = isPerformanceMode
+    ? (currentRallyActions.length > 0 || points.length > 0)
+    : points.length > 0;
+
+  // Rally in progress: neutrals accumulated but not yet concluded
+  const rallyInProgress = isPerformanceMode && currentRallyActions.length > 0;
 
   return {
     points,
@@ -324,6 +537,16 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     pendingPoint,
     servingTeam,
     sport,
+    isPerformanceMode,
+    currentRallyActions,
+    rallyInProgress,
+    directionOrigin,
+    pendingDirectionAction,
+    canUndo,
+    preSelectedPlayerId,
+    setPreSelectedPlayerId,
+    preSelectedRating,
+    setPreSelectedRating,
     initialServer,
     setInitialServer,
     setTeamNames,
@@ -338,6 +561,7 @@ export function useMatchState(matchId: string, ready: boolean = true) {
     endSet,
     startNewSet,
     waitingForNewSet,
+    lastEndedSetScore,
     finishMatch,
     resetMatch,
     switchSides,

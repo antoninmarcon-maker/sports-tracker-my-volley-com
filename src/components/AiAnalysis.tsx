@@ -18,6 +18,7 @@ interface AiAnalysisProps {
   isLoggedIn: boolean;
   onLoginRequired: () => void;
   finished?: boolean;
+  matchId?: string;
 }
 
 const SPORT_LABELS: Record<SportType, string> = {
@@ -102,7 +103,7 @@ function buildMatchStatsText(
       if (total === 0) return;
       const eff = total > 0 ? ((scored.length / total) * 100).toFixed(0) : '0';
       text += `  ${p.name || '—'}: ${scored.length} pts gagnés, ${negatives.length} négatifs, efficacité ${eff}%`;
-      
+
       const actions: Record<string, number> = {};
       scored.forEach(pt => { actions[pt.action] = (actions[pt.action] || 0) + 1; });
       const details = Object.entries(actions).map(([a, c]) => `${a}:${c}`).join(', ');
@@ -185,7 +186,7 @@ export function AiAnalysis({ points, completedSets, currentSetPoints, teamNames,
       if (data?.error) throw new Error(data.error);
       setAnalysis(data.analysis);
       // Tutorial step 2 → 3: AI analysis completed successfully
-      updateTutorialStep(3).catch(() => {});
+      updateTutorialStep(3).catch(() => { });
     } catch (err: any) {
       toast.error(err.message || t('analysis.analysisError'));
       setAnalysis(null);

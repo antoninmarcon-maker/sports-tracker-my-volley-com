@@ -12,6 +12,10 @@ export interface CustomAction {
   sigil?: string; // Max 2 chars for neutral court display
   showOnCourt?: boolean; // Whether to display neutral point on court
   assignToPlayer?: boolean; // Whether to show player selector for this action
+  /** Whether this action requires a direction (2-click: origin + destination) */
+  hasDirection?: boolean;
+  /** Whether we prompt for action quality rating (positive / neutral / negative) */
+  hasRating?: boolean;
 }
 
 export interface ActionsConfig {
@@ -19,6 +23,8 @@ export interface ActionsConfig {
   hiddenActions: string[];
   /** User-created custom actions */
   customActions: CustomAction[];
+  /** Overrides for predefined/default actions (e.g., hasRating, assignToPlayer, hasDirection) */
+  defaultActionsConfig?: Record<string, Partial<Omit<CustomAction, 'id' | 'sport' | 'category' | 'label' | 'points'>>>;
 }
 
 function getConfig(): ActionsConfig {
@@ -35,12 +41,13 @@ function getDefaultConfig(): ActionsConfig {
   return {
     // "Other" actions hidden by default
     hiddenActions: [
-      'other_offensive', 'other_volley_fault',
+      'other_offensive', 'other_volley_fault', 'other_volley_neutral',
       'other_tennis_winner', 'other_tennis_fault',
       'other_padel_winner', 'other_padel_fault',
       'other_basket_fault',
     ],
     customActions: [],
+    defaultActionsConfig: {},
   };
 }
 
@@ -58,6 +65,7 @@ async function syncActionsToCloud(config: ActionsConfig) {
     await patchCloudSettings(userId, {
       customActions: config.customActions,
       hiddenActions: config.hiddenActions,
+      defaultActionsConfig: config.defaultActionsConfig,
     });
   } catch {
     // Silent fail — localStorage is source of truth for current session
@@ -69,11 +77,12 @@ export function getActionsConfig(): ActionsConfig {
 }
 
 /** Overwrite local config from cloud data (used during hydration) */
-export function hydrateActionsConfig(cloud: { customActions?: CustomAction[]; hiddenActions?: string[] }) {
+export function hydrateActionsConfig(cloud: { customActions?: CustomAction[]; hiddenActions?: string[]; defaultActionsConfig?: Record<string, any> }) {
   const local = getConfig();
   const merged: ActionsConfig = {
     hiddenActions: cloud.hiddenActions ?? local.hiddenActions,
     customActions: cloud.customActions ?? local.customActions,
+    defaultActionsConfig: cloud.defaultActionsConfig ?? local.defaultActionsConfig ?? {},
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
 }
@@ -92,7 +101,7 @@ export function toggleActionVisibility(actionKey: string): ActionsConfig {
 
 export function addCustomAction(
   label: string, sport: SportType, category: PointType,
-  points?: number, sigil?: string, showOnCourt?: boolean, assignToPlayer?: boolean
+  points?: number, sigil?: string, showOnCourt?: boolean, assignToPlayer?: boolean, hasDirection?: boolean, hasRating?: boolean
 ): ActionsConfig {
   const config = getConfig();
   config.customActions.push({
@@ -101,15 +110,17 @@ export function addCustomAction(
     sport,
     category,
     ...(points != null && { points }),
-    ...(category === 'neutral' && sigil ? { sigil: sigil.slice(0, 2).toUpperCase() } : {}),
-    ...(category === 'neutral' ? { showOnCourt: showOnCourt ?? false } : {}),
-    ...(category === 'neutral' ? { assignToPlayer: assignToPlayer ?? true } : {}),
+    ...(sigil ? { sigil: sigil.slice(0, 2).toUpperCase() } : {}),
+    showOnCourt: hasDirection ? true : (showOnCourt ?? (category === 'neutral' ? false : true)),
+    assignToPlayer: assignToPlayer ?? true,
+    ...(hasDirection ? { hasDirection: true } : {}),
+    ...(hasRating ? { hasRating: true } : {}),
   });
   saveConfig(config);
   return config;
 }
 
-export function updateCustomAction(id: string, newLabel: string, points?: number, sigil?: string, showOnCourt?: boolean, assignToPlayer?: boolean): ActionsConfig {
+export function updateCustomAction(id: string, newLabel: string, points?: number, sigil?: string, showOnCourt?: boolean, assignToPlayer?: boolean, hasDirection?: boolean, hasRating?: boolean): ActionsConfig {
   const config = getConfig();
   const action = config.customActions.find(a => a.id === id);
   if (action) {
@@ -117,12 +128,29 @@ export function updateCustomAction(id: string, newLabel: string, points?: number
     if (action.sport === 'basketball' && action.category === 'scored') {
       action.points = points;
     }
-    if (action.category === 'neutral') {
-      if (sigil !== undefined) action.sigil = sigil.slice(0, 2).toUpperCase();
-      if (showOnCourt !== undefined) action.showOnCourt = showOnCourt;
-      if (assignToPlayer !== undefined) action.assignToPlayer = assignToPlayer;
+    if (sigil !== undefined) action.sigil = sigil.slice(0, 2).toUpperCase();
+    if (hasDirection !== undefined) action.hasDirection = hasDirection;
+    if (hasDirection) {
+      action.showOnCourt = true;
+    } else if (showOnCourt !== undefined) {
+      action.showOnCourt = showOnCourt;
     }
+    if (assignToPlayer !== undefined) action.assignToPlayer = assignToPlayer;
+    if (hasRating !== undefined) action.hasRating = hasRating;
   }
+  saveConfig(config);
+  return config;
+}
+
+export function updateDefaultActionConfig(key: string, assignToPlayer?: boolean, hasDirection?: boolean, hasRating?: boolean): ActionsConfig {
+  const config = getConfig();
+  if (!config.defaultActionsConfig) config.defaultActionsConfig = {};
+  if (!config.defaultActionsConfig[key]) config.defaultActionsConfig[key] = {};
+  const overrides = config.defaultActionsConfig[key];
+  if (hasDirection !== undefined) overrides.hasDirection = hasDirection;
+  if (hasDirection) overrides.showOnCourt = true;
+  if (assignToPlayer !== undefined) overrides.assignToPlayer = assignToPlayer;
+  if (hasRating !== undefined) overrides.hasRating = hasRating;
   saveConfig(config);
   return config;
 }
@@ -191,12 +219,23 @@ export function getCustomActionRealKey(customAction: CustomAction): ActionType {
 export function getVisibleActions(
   sport: SportType,
   category: PointType,
-  defaultActions: { key: string; label: string; points?: number }[]
-): { key: string; label: string; points?: number; customId?: string; sigil?: string; showOnCourt?: boolean }[] {
+  defaultActions: { key: string; label: string; points?: number; hasRating?: boolean }[]
+): { key: string; label: string; points?: number; customId?: string; sigil?: string; showOnCourt?: boolean; hasDirection?: boolean; hasRating?: boolean; assignToPlayer?: boolean }[] {
   const config = getConfig();
 
-  // Filter out hidden default actions
-  const visible = defaultActions.filter(a => !config.hiddenActions.includes(a.key));
+  // Filter out hidden default actions, applying defaultActionsConfig overrides
+  const visible = defaultActions
+    .filter(a => !config.hiddenActions.includes(a.key))
+    .map(a => {
+      const overrides = config.defaultActionsConfig?.[a.key] || {};
+      return {
+        ...a,
+        assignToPlayer: overrides.assignToPlayer ?? true,
+        hasDirection: overrides.hasDirection ?? false,
+        showOnCourt: overrides.showOnCourt ?? overrides.hasDirection ?? false,
+        hasRating: overrides.hasRating ?? a.hasRating ?? false,
+      };
+    });
 
   // Add custom actions for this sport + category, excluding hidden ones
   const customs = config.customActions
@@ -209,6 +248,8 @@ export function getVisibleActions(
       ...(c.sigil ? { sigil: c.sigil } : {}),
       ...(c.showOnCourt != null ? { showOnCourt: c.showOnCourt } : {}),
       ...(c.assignToPlayer != null ? { assignToPlayer: c.assignToPlayer } : {}),
+      ...(c.hasDirection ? { hasDirection: true } : {}),
+      hasRating: c.hasRating ?? false,
     }));
 
   return [...visible, ...customs];

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Plus, History, Trash2, Eye, Play, Info, CheckCircle2, LogIn, HelpCircle, Loader2, X, MessageSquare, ImagePlus } from 'lucide-react';
+import { Plus, History, Trash2, Eye, Play, Info, CheckCircle2, LogIn, HelpCircle, Loader2, X, MessageSquare, ImagePlus, Share2, Copy, Mail } from 'lucide-react';
+import { getDemoMatch, DEMO_MATCH_ID } from '@/lib/demoMatch';
 import logoCapbreton from '@/assets/logo-capbreton.jpeg';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -79,13 +80,16 @@ export default function Home() {
   const [matchFormat, setMatchFormat] = useState<MatchFormat>('singles');
   const [hasCourt, setHasCourt] = useState(true);
   const [racketPlayers, setRacketPlayers] = useState<{ blue1: string; blue2: string; red1: string; red2: string }>({ blue1: '', blue2: '', red1: '', red2: '' });
-  
+
   const [finishingId, setFinishingId] = useState<string | null>(null);
   const [showSavedPlayers, setShowSavedPlayers] = useState(false);
   const [customLogo, setCustomLogo] = useState<string | null>(null);
   const [savedPlayersList, setSavedPlayersList] = useState<{ id: string; name: string }[]>([]);
   const [showPushPrompt, setShowPushPrompt] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showShareInvite, setShowShareInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
 
   // Welcome modal on first visit
   useEffect(() => {
@@ -220,17 +224,17 @@ export default function Home() {
 
   const handleCreate = () => {
     const isRacket = selectedSport === 'tennis' || selectedSport === 'padel';
-    
+
     let blueName: string;
     let redName: string;
     let matchPlayers: { id: string; name: string }[] = [];
-    
+
     if (isRacket) {
       const b1 = racketPlayers.blue1.trim();
       const b2 = racketPlayers.blue2.trim();
       const r1 = racketPlayers.red1.trim();
       const r2 = racketPlayers.red2.trim();
-      
+
       if (matchFormat === 'doubles') {
         blueName = [b1, b2].filter(Boolean).join(' / ') || t('scoreboard.blue');
         redName = [r1, r2].filter(Boolean).join(' / ') || t('home.opponentsDefault');
@@ -248,25 +252,24 @@ export default function Home() {
       blueName = names.blue.trim() || t('scoreboard.blue');
       redName = names.red.trim() || t('scoreboard.red');
     }
-    
+
     const metadata = { ...(isRacket ? { matchFormat, advantageRule: getAdvantageRule(selectedSport) } : {}), hasCourt };
     const match = createNewMatch({ blue: blueName, red: redName }, selectedSport, metadata);
-    
+
     // For racket sports, override players from form (not last roster)
     if (isRacket && matchPlayers.length > 0) {
       match.players = matchPlayers;
     }
-    
+
     saveMatch(match);
     setActiveMatchId(match.id);
     localStorage.setItem('hasCreatedMatch', 'true');
     if (user) {
-      saveCloudMatch(user.id, match).catch(err =>
-        { if (import.meta.env.DEV) console.error('Cloud save failed:', err); }
+      saveCloudMatch(user.id, match).catch(err => { if (import.meta.env.DEV) console.error('Cloud save failed:', err); }
       );
     }
     // Tutorial step 0 → 1: first match created
-    updateTutorialStep(1).catch(() => {});
+    updateTutorialStep(1).catch(() => { });
     setShowNew(false);
     setRacketPlayers({ blue1: '', blue2: '', red1: '', red2: '' });
     navigate(`/match/${match.id}`);
@@ -458,6 +461,20 @@ export default function Home() {
           <span className="relative z-10">{t('home.newMatch')}</span>
         </button>
 
+        {!user && (
+          <button
+            onClick={() => {
+              saveMatch(getDemoMatch());
+              setActiveMatchId(DEMO_MATCH_ID);
+              navigate(`/match/${DEMO_MATCH_ID}`);
+            }}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-secondary transition-all active:scale-[0.97]"
+          >
+            <Eye size={18} className="text-primary" />
+            {t('home.demoMatch', { defaultValue: 'Voir un exemple de match' })}
+          </button>
+        )}
+
         <Dialog open={showNew} onOpenChange={setShowNew}>
           <DialogContent className="max-w-sm rounded-2xl">
             <DialogHeader>
@@ -497,11 +514,10 @@ export default function Home() {
                       <button
                         key={f}
                         onClick={() => setMatchFormat(f)}
-                        className={`py-2 rounded-xl font-bold text-xs transition-all border-2 ${
-                          matchFormat === f
-                            ? 'bg-primary/15 text-primary border-primary/40'
-                            : 'bg-secondary text-secondary-foreground border-transparent hover:bg-secondary/80'
-                        }`}
+                        className={`py-2 rounded-xl font-bold text-xs transition-all border-2 ${matchFormat === f
+                          ? 'bg-primary/15 text-primary border-primary/40'
+                          : 'bg-secondary text-secondary-foreground border-transparent hover:bg-secondary/80'
+                          }`}
                       >
                         {f === 'singles' ? t('home.singles') : t('home.doubles')}
                       </button>
@@ -623,62 +639,65 @@ export default function Home() {
             <Instructions />
           ) : (
             <>
-            <div className="flex items-center gap-2">
-              <History size={16} className="text-muted-foreground" />
-              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">{t('home.previousMatches')}</h2>
-            </div>
-            <div className="space-y-2">
-              {matches.map(match => {
-                const sc = matchScore(match);
-                const totalPoints = match.completedSets.reduce((sum, s) => sum + s.points.length, 0) + match.points.length;
-                return (
-                  <div key={match.id} className="bg-card rounded-xl p-4 border border-border">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 text-sm font-bold">
-                          <span className="text-base">{sportIcon(match.sport)}</span>
-                          <span className="text-team-blue">{match.teamNames.blue}</span>
-                          <span className="text-muted-foreground text-xs">vs</span>
-                          <span className="text-team-red">{match.teamNames.red}</span>
+              <div className="flex items-center gap-2">
+                <History size={16} className="text-muted-foreground" />
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">{t('home.previousMatches')}</h2>
+              </div>
+              <div className="space-y-2">
+                {matches.map(match => {
+                  const sc = matchScore(match);
+                  const totalPoints = match.completedSets.reduce((sum, s) => sum + s.points.length, 0) + match.points.length;
+                  return (
+                    <div key={match.id} className="bg-card rounded-xl p-4 border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 text-sm font-bold">
+                            <span className="text-base">{sportIcon(match.sport)}</span>
+                            <span className="text-team-blue">{match.teamNames.blue}</span>
+                            <span className="text-muted-foreground text-xs">vs</span>
+                            <span className="text-team-red">{match.teamNames.red}</span>
+                            {(match as any).metadata?.isPerformanceMode && (
+                              <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary/15 text-primary border border-primary/20">⚡ PERF</span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{formatDate(match.updatedAt)}</p>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{formatDate(match.updatedAt)}</p>
+                        <div className="text-right">
+                          <p className="text-lg font-black text-foreground tabular-nums">{sc.blue} - {sc.red}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {match.finished
+                              ? (sc.blue > sc.red ? `🏆 ${match.teamNames.blue}` : sc.red > sc.blue ? `🏆 ${match.teamNames.red}` : t('home.equality'))
+                              : `${match.sport === 'basketball' ? 'QT' : 'Set'} ${match.currentSetNumber} ${t('home.setInProgress')}`} · {totalPoints} pts
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-black text-foreground tabular-nums">{sc.blue} - {sc.red}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {match.finished
-                            ? (sc.blue > sc.red ? `🏆 ${match.teamNames.blue}` : sc.red > sc.blue ? `🏆 ${match.teamNames.red}` : t('home.equality'))
-                            : `${match.sport === 'basketball' ? 'QT' : 'Set'} ${match.currentSetNumber} ${t('home.setInProgress')}`} · {totalPoints} pts
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleResume(match.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary/15 text-primary font-semibold text-xs border border-primary/20 hover:bg-primary/25 transition-all"
-                      >
-                        {match.finished ? <><Eye size={14} /> {t('common.view')}</> : <><Play size={14} /> {t('common.resume')}</>}
-                      </button>
-                      {!match.finished && (
+                      <div className="flex gap-2">
                         <button
-                          onClick={() => setFinishingId(match.id)}
-                          className="px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all"
-                          title={t('home.finishMatch')}
+                          onClick={() => handleResume(match.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary/15 text-primary font-semibold text-xs border border-primary/20 hover:bg-primary/25 transition-all"
                         >
-                          <CheckCircle2 size={14} />
+                          {match.finished ? <><Eye size={14} /> {t('common.view')}</> : <><Play size={14} /> {t('common.resume')}</>}
                         </button>
-                      )}
-                      <button
-                        onClick={() => setDeletingId(match.id)}
-                        className="px-3 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                        {!match.finished && (
+                          <button
+                            onClick={() => setFinishingId(match.id)}
+                            className="px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all"
+                            title={t('home.finishMatch')}
+                          >
+                            <CheckCircle2 size={14} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setDeletingId(match.id)}
+                          className="px-3 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
             </>
           )}
         </div>
