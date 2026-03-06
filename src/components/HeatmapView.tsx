@@ -594,6 +594,7 @@ export function HeatmapView({ points, completedSets, currentSetPoints, currentSe
                   <>
                     {[
                       [t('heatmap.firstServePct'), ds[team].totalServes > 0 ? Math.round((ds[team].firstServesIn / ds[team].totalServes) * 100) + '%' : '-'],
+                      [t('heatmap.firstServeFaults'), String(ds[team].totalServes - ds[team].firstServesIn)],
                       [t('heatmap.wonOnFirst'), ds[team].firstServesIn > 0 ? Math.round((ds[team].pointsWonOnFirstServe / ds[team].firstServesIn) * 100) + '%' : '-'],
                       [t('heatmap.wonOnSecond'), (ds[team].totalServes - ds[team].firstServesIn) > 0 ? Math.round((ds[team].pointsWonOnSecondServe / (ds[team].totalServes - ds[team].firstServesIn)) * 100) + '%' : '-'],
                     ].map(([label, val]) => (

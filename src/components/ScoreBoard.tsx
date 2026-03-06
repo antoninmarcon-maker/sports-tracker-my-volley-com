@@ -62,12 +62,17 @@ export function ScoreBoard({
   const [confirmEndSet, setConfirmEndSet] = useState(false);
   // Track pending 2nd serve state (after first serve fault)
   const [pendingSecondServe, setPendingSecondServe] = useState<Team | null>(null);
+  // Count first serve faults per team in the current set
+  const [firstServeFaultCounts, setFirstServeFaultCounts] = useState<{ blue: number; red: number }>({ blue: 0, red: 0 });
 
-  // Reset pending second serve whenever a point is successfully added
+  // Reset pending second serve whenever a point is successfully added; reset counts on new set
   const prevPointsLen = useRef(points.length);
   useEffect(() => {
     if (points.length !== prevPointsLen.current) {
       setPendingSecondServe(null);
+      if (points.length === 0) {
+        setFirstServeFaultCounts({ blue: 0, red: 0 });
+      }
       prevPointsLen.current = points.length;
     }
   }, [points.length]);
@@ -96,6 +101,7 @@ export function ScoreBoard({
     // First serve fault: don't score a point, just flag pending 2nd serve
     if (action === 'first_serve_fault' || action === 'padel_first_serve_fault') {
       setPendingSecondServe(menuTeam);
+      setFirstServeFaultCounts(prev => ({ ...prev, [menuTeam]: prev[menuTeam] + 1 }));
       setMenuTeam(null);
       return;
     }
@@ -376,7 +382,16 @@ export function ScoreBoard({
           <div className="flex-1 text-center">
             <div className="flex items-center justify-center gap-1.5">
               <p className={`text-xs font-semibold uppercase tracking-widest ${left === 'blue' ? 'text-team-blue' : 'text-team-red'}`}>{teamNames[left]}</p>
-              {servingTeam === left && <span className="text-[10px]" title="Au service">🎾</span>}
+              {servingTeam === left && (
+                <span className="flex items-center gap-0.5" title="Au service">
+                  <span className="text-[10px]">🎾</span>
+                  {isTennisOrPadel && firstServeFaultCounts[left] > 0 && (
+                    <span className="text-[9px] font-bold text-orange-400 bg-orange-500/15 border border-orange-500/30 px-1 rounded-full">
+                      {firstServeFaultCounts[left]}F
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
             {menuTeam === left && (
               <div className="flex justify-center mt-1">
@@ -398,7 +413,16 @@ export function ScoreBoard({
           <div className="flex-1 text-center">
             <div className="flex items-center justify-center gap-1.5">
               <p className={`text-xs font-semibold uppercase tracking-widest ${right === 'blue' ? 'text-team-blue' : 'text-team-red'}`}>{teamNames[right]}</p>
-              {servingTeam === right && <span className="text-[10px]" title="Au service">🎾</span>}
+              {servingTeam === right && (
+                <span className="flex items-center gap-0.5" title="Au service">
+                  <span className="text-[10px]">🎾</span>
+                  {isTennisOrPadel && firstServeFaultCounts[right] > 0 && (
+                    <span className="text-[9px] font-bold text-orange-400 bg-orange-500/15 border border-orange-500/30 px-1 rounded-full">
+                      {firstServeFaultCounts[right]}F
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
             {menuTeam === right && (
               <div className="flex justify-center mt-1">

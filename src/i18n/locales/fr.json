@@ -337,6 +337,7 @@
     "turnovers": "Pertes de balle",
     "foulsCommitted": "Fautes commises",
     "firstServePct": "% 1ère balle",
+    "firstServeFaults": "Fautes 1ère balle",
     "wonOnFirst": "% pts gagnés (1ère)",
     "wonOnSecond": "% pts gagnés (2ème)"
   },

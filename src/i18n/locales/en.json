@@ -337,6 +337,7 @@
     "turnovers": "Turnovers",
     "foulsCommitted": "Fouls committed",
     "firstServePct": "% 1st serve IN",
+    "firstServeFaults": "1st serve faults",
     "wonOnFirst": "% pts won (1st)",
     "wonOnSecond": "% pts won (2nd)"
   },
@@ -475,6 +476,8 @@
     "other_tennis_winner": "Other winner",
     "double_fault": "Double fault",
     "return_error": "Return error",
+    "first_serve_fault": "First serve fault",
+    "padel_first_serve_fault": "First serve fault",
     "unforced_error_forehand": "FH error",
     "unforced_error_backhand": "BH error",
     "net_error": "Net",
